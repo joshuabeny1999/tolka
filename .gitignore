@@ -1,0 +1,40 @@
+# --- Go ---
+# Binaries
+/bin/
+/dist/
+# Das finale Binary (Name anpassen falls nötig)
+tolka-app
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go Build Cache und Vendor
+vendor/
+go.work
+
+# --- Frontend (Node/React) ---
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# --- OS Specific ---
+.DS_Store
+.DS_Store?
+._*
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Docker / Environment ---
+.env
