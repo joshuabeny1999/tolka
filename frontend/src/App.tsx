@@ -1,11 +1,10 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { Mic, MicOff, Settings, Type } from "lucide-react"
+import { Settings, Type } from "lucide-react"
 
 function App() {
     const [fontSize, setFontSize] = useState([18])
