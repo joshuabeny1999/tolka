@@ -28,6 +28,9 @@ function App() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
+        <p>
+            Hello World from the frontend! Backend: <a href="/api/hello" target="_blank">Ask Backend to say Hello</a>
+        </p>
     </>
   )
 }

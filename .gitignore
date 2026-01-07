@@ -28,6 +28,10 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 
+# For local development
+cmd/server/dist/*
+!cmd/server/dist/index.html
+
 # --- OS Specific ---
 .DS_Store
 .DS_Store?

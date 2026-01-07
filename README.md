@@ -36,7 +36,7 @@ The architecture follows the "Majestic Monolith" pattern to ensure easy deployme
 * Go 1.25+ (for local dev)
 * Node.js 20+ (for local dev)
 
-### Option A: Run with Docker (Recommended for Preview)
+### Option A: Run with Docker (Recommended for Preview/Production)
 This builds the full container just like in production.
 
 ```bash
@@ -46,26 +46,39 @@ docker compose up --build
 
 The app is now accessible at [http://localhost:8080](https://www.google.com/search?q=http://localhost:8080).
 
+Hier ist der aktualisierte Abschnitt für deine **README.md**.
+
+Er ist jetzt viel professioneller und einfacher, da wir das `Makefile` und `Air` integriert haben.
+
+
 ### Option B: Local Development (Hot Reload)
 
-If you want to edit code and see changes immediately:
+For the best developer experience, we use **Air** (Go hot reload) and **Vite** (Frontend hot reload) running concurrently.
 
-1. **Start Frontend (Terminal 1):**
+#### 1. One-time Setup
+Install the necessary tools and dependencies:
+
 ```bash
+# Install Air (Hot reload for Go)
+go install github.com/air-verse/air@latest
+
+# Install Frontend dependencies
 cd frontend
 npm install
-npm run dev
 
 ```
 
-*Note: By default Vite runs on port 5173. You might need to adjust the Go backend to allow CORS or proxy requests if running separately.*
-2. **Start Backend (Terminal 2):**
+#### 2. Start Development Server
+
+Simply run the make command from the project root. This starts both the Go backend and React frontend in a single terminal.
+
 ```bash
-# From project root
-go run cmd/server/main.go
+make dev
 
 ```
 
+* **Frontend:** Open [http://localhost:5173](http://localhost:5173) (Proxies API requests to backend automatically)
+* **Backend:** Runs on port `8080` (rebuilds automatically on save)
 
 ## 🏗 Project Structure
 

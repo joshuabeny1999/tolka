@@ -1,7 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+    plugins: [react()],
+    server: {
+        proxy: {
+            // API Requests an Go weiterleiten
+            '/api': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+            },
+            // WebSocket Requests für Live-Captions weiterleiten
+            '/ws': {
+                target: 'ws://localhost:8080',
+                ws: true,
+            }
+        }
+    }
 })

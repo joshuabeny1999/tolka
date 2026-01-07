@@ -17,5 +17,10 @@ func main() {
 	// Statische Dateien servieren
 	http.Handle("/", http.FileServer(http.FS(distFS)))
 
+	// Dummy API endpoint returning hello
+	http.HandleFunc("/api/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello World!"))
+	})
+
 	http.ListenAndServe(":8080", nil)
 }
