@@ -16,6 +16,10 @@ import (
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 )
 
+func init() {
+	client.InitWithDefault()
+}
+
 type Provider struct {
 	apiKey      string
 	dgClient    *client.WSCallback
@@ -34,10 +38,7 @@ func New(apiKey string) *Provider {
 }
 
 func (p *Provider) Connect(ctx context.Context) error {
-	// 1. Init Library
-	client.InitWithDefault()
-
-	// 2. Setup Options (Swiss German, Nova-3, Interim)
+	// 1. Setup Options (Swiss German, Nova-3, Interim)
 	options := &interfaces.LiveTranscriptionOptions{
 		Model:          "nova-3",
 		Language:       "de-CH",
@@ -47,28 +48,28 @@ func (p *Provider) Connect(ctx context.Context) error {
 		// Diarization: true, // Uncomment later when needed
 	}
 
-	// 3. Create Callback to handle incoming messages
+	// 2. Create Callback to handle incoming messages
 	// We pass 'p' (the provider) to the callback so it can push to resChan
 	callback := &deepgramCallback{provider: p}
 
-	// 4. Initialize Client
+	// 3. Initialize Client
 	dgClient, err := client.NewWSUsingCallback(ctx, p.apiKey, &interfaces.ClientOptions{}, options, callback)
 	if err != nil {
 		return err
 	}
 	p.dgClient = dgClient
 
-	// 5. Establish Connection
+	// 4. Establish Connection
 	if !p.dgClient.Connect() {
 		return context.DeadlineExceeded // Or custom error
 	}
 
-	// 6. Setup Audio Pipe (The Bridge between SendAudio and Deepgram)
+	// 5. Setup Audio Pipe (The Bridge between SendAudio and Deepgram)
 	// We create a pipe. We write to 'pw', Deepgram reads from 'pr'.
 	pr, pw := io.Pipe()
 	p.inputWriter = pw
 
-	// 7. Start Streaming in a background goroutine
+	// 6. Start Streaming in a background goroutine
 	// Deepgram's Stream() blocks until the stream is closed, so we must run it async.
 	go func() {
 		// Buffer the reader for better performance
