@@ -104,6 +104,21 @@ tolka/
 
 ```
 
+## 🔒 Authentication
+
+To protect the application from unauthorized access (and unexpected API costs), Tolka supports optional **HTTP Basic Auth**.
+
+* **Development:** If `AUTH_USERNAME` or `AUTH_PASSWORD` are empty or not set, authentication is **disabled**.
+* **Production:** Set the variables to enforce login for the entire application (Frontend + WebSocket).
+
+Add these to your `.env` file or Docker environment:
+
+```env
+# Basic Auth Credentials
+AUTH_USERNAME=admin
+AUTH_PASSWORD=change_me_to_something_secure
+```
+
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.

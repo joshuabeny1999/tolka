@@ -10,6 +10,8 @@ import (
 type Config struct {
 	DeepgramAPIKey string
 	Port           string
+	AuthUsername   string
+	AuthPassword   string
 }
 
 func Load() *Config {
@@ -25,13 +27,13 @@ func Load() *Config {
 		port = "8080"
 	}
 
-	env := os.Getenv("APP_ENV")
-	if env == "" {
-		env = "local"
-	}
+	authUsername := os.Getenv("AUTH_USERNAME")
+	authPassword := os.Getenv("AUTH_PASSWORD")
 
 	return &Config{
 		DeepgramAPIKey: apiKey,
 		Port:           port,
+		AuthUsername:   authUsername,
+		AuthPassword:   authPassword,
 	}
 }
