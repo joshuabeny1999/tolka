@@ -10,7 +10,7 @@ import (
 	"github.com/joshuabeny1999/tolka/internal/config"
 	"github.com/joshuabeny1999/tolka/internal/middleware"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
-	"github.com/joshuabeny1999/tolka/internal/transcription/mock"
+	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram"
 	"github.com/joshuabeny1999/tolka/internal/ws"
 )
 
@@ -30,8 +30,7 @@ func main() {
 
 	// 2. WebSocket Endpoint
 	factory := func() transcription.Service {
-		// Later: return deepgram.New(cfg.Deepgram)
-		return mock.New()
+		return deepgram.New(cfg.DeepgramAPIKey)
 	}
 
 	wsHandler := ws.NewHandler(factory)

@@ -13,12 +13,13 @@ function App() {
     // 1. Setup Logic
     // Automatische Erkennung ob ws:// oder wss:// (für späteres Deployment wichtig)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}/ws`;
+    const wsUrl = `${protocol}//${window.location.hostname}:${window.location.port}/ws`;
 
     // Hook Integration
     const {
         isRecording,
-        transcription,
+        committedText,
+        partialText,
         startRecording,
         stopRecording,
         error
@@ -72,23 +73,32 @@ function App() {
                         </div>
                     ))}
 
-                    {/* LIVE Transkription */}
-                    {/* Wir zeigen diesen Block nur an, wenn wir Text haben oder aufnehmen */}
-                    {(transcription || isRecording) && (
+                    {/* LIVE Transkription Area */}
+                    {(committedText || partialText || isRecording) && (
                         <div className="flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <span className="text-xs font-bold uppercase tracking-wider text-blue-500 flex items-center gap-2">
                                 Live {isRecording && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"/>}
                             </span>
+
                             <p
                                 className="leading-relaxed font-medium"
                                 style={{ fontSize: `${fontSize[0]}px` }}
                             >
-                                {transcription}
-                                {/* Cursor Simulation wenn aktiv */}
+                                {/* 1. Der fertige Text (Normal / Schwarz) */}
+                                <span>{committedText}</span>
+
+                                {/* 2. Ein Leerzeichen, falls beide existieren */}
+                                {committedText && partialText && " "}
+
+                                {/* 3. Der vorläufige Text (Grau / Italic / Heller) */}
+                                <span className="text-muted-foreground italic opacity-70 transition-opacity duration-200">
+                                    {partialText}
+                                </span>
+
+                                {/* Cursor Simulation */}
                                 {isRecording && <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-blue-500 animate-pulse opacity-50"/>}
                             </p>
-                        </div>
-                    )}
+                        </div>                    )}
 
                     {/* Error Anzeige */}
                     {error && (
