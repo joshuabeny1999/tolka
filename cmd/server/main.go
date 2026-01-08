@@ -3,24 +3,58 @@ package main
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
+	"strings"
+
+	"github.com/joshuabeny1999/tolka/internal/config"
 )
 
 //go:embed dist/*
 var content embed.FS
 
 func main() {
-	// Sub-Filesystem erstellen, damit "dist" nicht Teil der URL ist
-	distFS, _ := fs.Sub(content, "dist")
+	cfg := config.Load()
 
-	// ... dein Router Setup ...
-	// Statische Dateien servieren
-	http.Handle("/", http.FileServer(http.FS(distFS)))
+	mux := http.NewServeMux()
 
-	// Dummy API endpoint returning hello
-	http.HandleFunc("/api/hello", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World!"))
+	// 1. API Endpoints
+	mux.HandleFunc("/api/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message": "Hello from Go Backend!"}`))
 	})
 
-	http.ListenAndServe(":8080", nil)
+	// 2. Static Assets & SPA Fallback
+	distFS, err := fs.Sub(content, "dist")
+	if err != nil {
+		log.Fatal("Konnte dist Ordner nicht einbinden:", err)
+	}
+
+	mux.HandleFunc("/", spaHandler(distFS))
+
+	// 3. Start
+	addr := ":" + cfg.Port
+	log.Printf("Server läuft auf %s", addr)
+
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// spaHandler checks if a file exists within the given directory, else it serves the index.html
+func spaHandler(assets fs.FS) http.HandlerFunc {
+	fileServer := http.FileServer(http.FS(assets))
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+
+		f, err := assets.Open(path)
+		if err != nil {
+			r.URL.Path = "/"
+		} else {
+			f.Close()
+		}
+
+		fileServer.ServeHTTP(w, r)
+	}
 }
