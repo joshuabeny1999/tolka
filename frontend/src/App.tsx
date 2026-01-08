@@ -13,7 +13,7 @@ function App() {
     // 1. Setup Logic
     // Automatische Erkennung ob ws:// oder wss:// (für späteres Deployment wichtig)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:8080/ws`;
+    const wsUrl = `${protocol}//${window.location.hostname}/ws`;
 
     // Hook Integration
     const {
