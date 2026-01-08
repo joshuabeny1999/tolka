@@ -4,7 +4,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
@@ -42,12 +41,7 @@ func TestHandler_EndToEnd(t *testing.T) {
 	}
 
 	// 7. Test: Receive Result
-	expectedText := "Hello Test World"
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		mockSrv.EmitFakeResult(expectedText)
-	}()
-
+	expectedText := "Ich höre 3 Bytes... "
 	var result transcription.TranscriptResult
 	if err := ws.ReadJSON(&result); err != nil {
 		t.Fatalf("ReadJSON failed: %v", err)

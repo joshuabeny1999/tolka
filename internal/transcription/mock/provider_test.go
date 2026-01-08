@@ -36,12 +36,26 @@ func TestProvider_EmitFakeResult(t *testing.T) {
 
 func TestProvider_SendAudio(t *testing.T) {
 	provider := mock.New()
+	expectedText := "Ich höre 15 Bytes... "
 
 	// SendAudio should not panic and return nil error
 	err := provider.SendAudio([]byte("fake-audio-data"))
 	if err != nil {
 		t.Errorf("SendAudio failed: %v", err)
 	}
+
+	select {
+	case result := <-provider.ResultChan():
+		if result.Text != expectedText {
+			t.Errorf("Expected text '%s', got '%s'", expectedText, result.Text)
+		}
+		if !result.IsPartial {
+			t.Error("Expected IsPartial to be true")
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for result from mock provider")
+	}
+
 }
 
 func TestProvider_Close(t *testing.T) {

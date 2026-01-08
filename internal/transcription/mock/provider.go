@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/joshuabeny1999/tolka/internal/transcription"
@@ -28,6 +29,18 @@ func (p *Provider) Connect(ctx context.Context) error {
 
 func (p *Provider) SendAudio(data []byte) error {
 	log.Printf("Mock: Received %d bytes audio", len(data))
+
+	fakeResponse := transcription.TranscriptResult{
+		Text:      fmt.Sprintf("Ich höre %d Bytes... ", len(data)),
+		IsPartial: true, // Wir tun so, als wäre der Satz noch nicht fertig
+	}
+
+	select {
+	case p.resChan <- fakeResponse:
+	default:
+		log.Println("Mock: Warnung - Result Channel voll, Frame verworfen")
+	}
+
 	return nil
 }
 
