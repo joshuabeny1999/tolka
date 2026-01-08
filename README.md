@@ -36,6 +36,17 @@ The architecture follows the "Majestic Monolith" pattern to ensure easy deployme
 * Go 1.25+ (for local dev)
 * Node.js 20+ (for local dev)
 
+### 0. Configuration (Required)
+Before running the app (via Docker or Local), you need to set up the environment variables.
+
+1. Copy the example file:
+   ```bash
+   cp .env.example .env
+2. Open .env and paste your Deepgram API Key:
+    ```
+    DEEPGRAM_API_KEY=your_key_here
+    ```
+
 ### Option A: Run with Docker (Recommended for Preview/Production)
 This builds the full container just like in production.
 
@@ -89,6 +100,7 @@ tolka/
 ├── frontend/           # React application
 ├── Dockerfile          # Multi-stage Docker build definition
 └── docker-compose.yml  # Local development setup
+└── env.example         # sample environment variables
 
 ```
 
