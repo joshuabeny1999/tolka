@@ -44,7 +44,7 @@ func (p *Provider) Connect(ctx context.Context) error {
 		Language:       "de-CH",
 		SmartFormat:    true,
 		InterimResults: true,
-		Endpointing:    "10", // Wait 10ms of silence to determine endpoint
+		Endpointing:    "300",
 		// Diarization: true, // Uncomment later when needed
 	}
 

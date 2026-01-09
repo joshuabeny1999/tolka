@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react'; // useEffect fehlte im Import
 
 interface UseAudioStreamReturn {
     isRecording: boolean;
-    committedText: string; // Der fertige Text
-    partialText: string;   // Der "flackernde" Live-Text
+    committedText: string;
+    partialText: string;
     startRecording: () => Promise<void>;
     stopRecording: () => void;
     error: string | null;
@@ -18,42 +18,85 @@ export const useAudioStream = (wsUrl: string): UseAudioStreamReturn => {
     const socketRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
+    const isRecordingRef = useRef(false);
+
+    const stopRecording = useCallback(() => {
+        isRecordingRef.current = false;
+
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        }
+
+        if (socketRef.current) {
+            socketRef.current.close();
+            socketRef.current = null;
+        }
+        setIsRecording(false);
+        setPartialText('');
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (isRecordingRef.current) stopRecording();
+        };
+    }, [stopRecording]);
+
+    
     const startRecording = useCallback(async () => {
         setError(null);
+        isRecordingRef.current = true;
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+
             const socket = new WebSocket(wsUrl);
             socketRef.current = socket;
 
-            socket.onopen = () => console.log('WebSocket connected');
+            socket.onopen = () => {
+                console.log('WebSocket connected');
+                if (isRecordingRef.current && mediaRecorderRef.current?.state === 'inactive') {
+                    mediaRecorderRef.current.start(250);
+                    setIsRecording(true);
+                }
+            };
 
             socket.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
 
-                    // Logic for handling partial vs final results
+                    if (!data.text) return;
+
                     if (data.is_partial) {
-                        // Partial: Overwrite the current temporary text buffer
                         setPartialText(data.text);
                     } else {
-                        // Final: Append to the committed text history and clear partial buffer
-                        // We add a space if there is already text
                         setCommittedText((prev) => {
-                            const newText = prev ? `${prev} ${data.text}` : data.text;
-                            return newText;
+                            return prev ? `${prev} ${data.text}` : data.text;
                         });
-                        setPartialText(''); // Clear partial as it is now committed
+                        setPartialText('');
                     }
-
                 } catch (err) {
-                    console.error('Error parsing JSON:', err);
+                    console.error('JSON Error:', err);
                 }
             };
 
-            socket.onerror = () => setError('WebSocket connection failed');
+            socket.onerror = () => {
+                if (isRecordingRef.current) setError('WebSocket connection failed');
+            };
 
-            // ... Rest of MediaRecorder setup remains the same ...
+            socket.onclose = () => {
+                if (isRecordingRef.current) {
+                    stopRecording();
+                    setError('Connection closed by server');
+                }
+            };
+
             const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             mediaRecorderRef.current = mediaRecorder;
 
@@ -63,26 +106,13 @@ export const useAudioStream = (wsUrl: string): UseAudioStreamReturn => {
                 }
             };
 
-            mediaRecorder.start(75);
-            setIsRecording(true);
-
         } catch (err) {
             console.error(err);
             setError('Could not access microphone.');
+            isRecordingRef.current = false;
         }
-    }, [wsUrl]);
+    }, [wsUrl]); // stopRecording ist stabil dank useCallback, muss hier nicht in dependency array
 
-    const stopRecording = useCallback(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-        }
-        if (socketRef.current) {
-            socketRef.current.close();
-        }
-        setIsRecording(false);
-        // Optional: Reset text on stop? Or keep it? keeping it for now.
-    }, []);
 
     return {
         isRecording,
