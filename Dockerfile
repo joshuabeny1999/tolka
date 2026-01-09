@@ -1,5 +1,6 @@
 # --- Stage 1: Build React Frontend ---
-FROM node:20-alpine AS frontend-builder
+# Wir bleiben konsistent auf amd64
+FROM --platform=linux/amd64 node:20-alpine AS frontend-builder
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
@@ -7,74 +8,73 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- Stage 2: Build Go Backend ---
-# Using Debian 12 (Bookworm) which supports OpenSSL 3.x natively
-FROM golang:1.23-bookworm AS backend-builder
+# Basierend auf MS Docs: Debian 12 (Bookworm) Support
+FROM --platform=linux/amd64 golang:1.25-bookworm AS backend-builder
 WORKDIR /src
 
-# 1. Install system dependencies as requested
-# - build-essential: Compiler tools
-# - ca-certificates: SSL verification
-# - libasound2-dev: ALSA sound library headers
-# - libssl-dev: OpenSSL development headers (links to OpenSSL 3.x on Bookworm)
-# - wget: File retrieval
-# - gnupg, lsb-release, apt-transport-https: Helper tools for repo management
+# 1. Install System Dependencies (aus der Anleitung)
+# build-essential, ca-certificates, libasound2-dev, libssl-dev, wget
 RUN apt-get update && apt-get install -y \
     build-essential \
     ca-certificates \
     libasound2-dev \
     libssl-dev \
     wget \
-    gnupg \
-    lsb-release \
-    apt-transport-https
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. Add Microsoft Repository for Debian 12 (Bookworm)
-# We use the 'bookworm' codename and path /debian/12/prod
-RUN wget -O - https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/microsoft-prod.list
+# 2. Download and Setup SDK (Strictly following docs)
+# Wir setzen das Root-Verzeichnis wie in der Anleitung
+ENV SPEECHSDK_ROOT="/opt/speechsdk"
+RUN mkdir -p "$SPEECHSDK_ROOT"
 
-# 3. Install the actual Speech SDK library (needed for linking CGO)
-RUN apt-get update && apt-get install -y libmicrosoft-cognitive-services-speech-sdk
+WORKDIR /tmp
+# Download und Entpacken direkt in das Zielverzeichnis mit -C
+RUN wget -O SpeechSDK-Linux.tar.gz https://aka.ms/csspeech/linuxbinary \
+    && tar --strip 1 -xzf SpeechSDK-Linux.tar.gz -C "$SPEECHSDK_ROOT"
+
+# 3. Configure Go Environment (aus der Anleitung)
+# WICHTIG: Hier wird auf include/c_api verwiesen, das hat vorher gefehlt.
+ENV CGO_CFLAGS="-I$SPEECHSDK_ROOT/include/c_api"
+ENV CGO_LDFLAGS="-L$SPEECHSDK_ROOT/lib/x64 -lMicrosoft.CognitiveServices.Speech.core"
+# Sicherstellen, dass wir für x64 bauen
+ENV GOARCH=amd64
 
 # 4. Go Build
+WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 COPY --from=frontend-builder /app/dist ./cmd/server/dist
 
-# Build the binary
+# Build
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o tolka-app ./cmd/server/main.go
 
 # --- Stage 3: Final Runtime Image ---
-# Using Debian 12 (Bookworm) Slim
-FROM debian:bookworm-slim
+FROM --platform=linux/amd64 debian:bookworm-slim
 LABEL application="tolka-app"
 WORKDIR /root/
 
-# 1. Install Runtime Dependencies
-# - libasound2: Runtime ALSA library (dev not needed strictly, but headers don't hurt if unsure)
-# - libssl-dev / openssl: Ensures OpenSSL 3.x libraries are present
-# - ca-certificates: Crucial for HTTPS calls to Azure
+# 1. Runtime Dependencies
+# libssl-dev zieht die korrekten OpenSSL 3 Libs für Bookworm
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    wget \
-    gnupg \
-    apt-transport-https \
     libasound2 \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Add Microsoft Repository (same as builder, for Debian 12)
-RUN wget -O - https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/microsoft-prod.list
+# 2. SDK für Runtime bereitstellen
+ENV SPEECHSDK_ROOT="/opt/speechsdk"
+RUN mkdir -p "$SPEECHSDK_ROOT"
 
-# 3. Install the Speech SDK Shared Libraries (Runtime)
-RUN apt-get update && apt-get install -y \
-    libmicrosoft-cognitive-services-speech-sdk \
-    && rm -rf /var/lib/apt/lists/*
+# Wir kopieren das SDK aus dem Builder-Stage, damit die Pfade gleich bleiben
+COPY --from=backend-builder /opt/speechsdk /opt/speechsdk
 
-# 4. Copy Binary
+# 3. LD_LIBRARY_PATH setzen (aus der Anleitung)
+# Damit findet das Binary beim Starten die .so Dateien unter lib/x64
+ENV LD_LIBRARY_PATH="$SPEECHSDK_ROOT/lib/x64:$LD_LIBRARY_PATH"
+
+# 4. App kopieren
 COPY --from=backend-builder /src/tolka-app .
 
 EXPOSE 8080
