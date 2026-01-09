@@ -9,13 +9,20 @@ import { Settings, Type, Mic, MicOff, AlertCircle } from "lucide-react"
 // Importiere den Hook (Pfad ggf. anpassen)
 import { useAudioStream } from "./hooks/useAudioStream"
 
+declare global {
+    interface Window {
+        TOLKA_CONFIG?: {
+            WS_TOKEN: string;
+        };
+    }
+}
+
 function App() {
     // 1. Setup Logic
-    // Automatische Erkennung ob ws:// oder wss:// (für späteres Deployment wichtig)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:${window.location.port}/ws`;
+    const token = window.TOLKA_CONFIG?.WS_TOKEN || "";
+    const wsUrl = `${protocol}//${window.location.hostname}:${window.location.port}/ws?token=${token}`;
 
-    // Hook Integration
     const {
         isRecording,
         committedText,

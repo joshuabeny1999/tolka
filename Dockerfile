@@ -22,6 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o tolka-app ./cmd/server
 
 # --- Stage 3: Final Runtime Image ---
 FROM alpine:latest
+LABEL application="tolka-app"
 WORKDIR /root/
 RUN apk --no-cache add ca-certificates
 

@@ -11,6 +11,7 @@ func TestLoad_Defaults(t *testing.T) {
 	t.Setenv("DEEPGRAM_API_KEY", "")
 	t.Setenv("AUTH_USERNAME", "")
 	t.Setenv("AUTH_PASSWORD", "")
+	t.Setenv("WS_TOKEN", "")
 
 	// 2. Execution
 	cfg := Load()
@@ -31,6 +32,10 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.AuthPassword != "" {
 		t.Errorf("Expected empty auth password, got '%s'", cfg.AuthPassword)
 	}
+
+	if cfg.WsToken != "" {
+		t.Errorf("Expected empty WS token, got '%s'", cfg.WsToken)
+	}
 }
 
 func TestLoad_Overrides(t *testing.T) {
@@ -39,11 +44,13 @@ func TestLoad_Overrides(t *testing.T) {
 	expectedKey := "secret-key"
 	expectedUsername := "myuser"
 	expectedPassword := "awesome-password"
+	expectedWsToken := "my-ws-token"
 
 	t.Setenv("PORT", expectedPort)
 	t.Setenv("DEEPGRAM_API_KEY", expectedKey)
 	t.Setenv("AUTH_USERNAME", expectedUsername)
 	t.Setenv("AUTH_PASSWORD", expectedPassword)
+	t.Setenv("WS_TOKEN", expectedWsToken)
 
 	// 2. Execution
 	cfg := Load()
@@ -62,5 +69,8 @@ func TestLoad_Overrides(t *testing.T) {
 	}
 	if cfg.AuthPassword != expectedPassword {
 		t.Errorf("Expected auth password '%s', got '%s'", expectedPassword, cfg.AuthPassword)
+	}
+	if cfg.WsToken != expectedWsToken {
+		t.Errorf("Expected WS token '%s', got '%s'", expectedWsToken, cfg.WsToken)
 	}
 }

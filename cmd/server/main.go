@@ -5,10 +5,10 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/joshuabeny1999/tolka/internal/config"
 	"github.com/joshuabeny1999/tolka/internal/middleware"
+	"github.com/joshuabeny1999/tolka/internal/spa"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram"
 	"github.com/joshuabeny1999/tolka/internal/ws"
@@ -41,30 +41,19 @@ func main() {
 	if err != nil {
 		log.Fatal("Konnte dist Ordner nicht einbinden:", err)
 	}
-	mux.HandleFunc("/", spaHandler(distFS))
+	spaHandler, err := spa.NewHandler(distFS, cfg.WsToken)
+	if err != nil {
+		log.Fatal("Could not initialize SPA handler:", err)
+	}
+	mux.Handle("/", spaHandler)
 
 	// 4. Auth
-	protectedMux := middleware.BasicAuth(mux, cfg.AuthUsername, cfg.AuthPassword)
+	protectedMux := middleware.BasicAuth(mux, cfg.AuthUsername, cfg.AuthPassword, cfg.WsToken)
 
 	// 5. Start
 	addr := ":" + cfg.Port
 	log.Printf("Server läuft auf %s", addr)
 	if err := http.ListenAndServe(addr, protectedMux); err != nil {
 		log.Fatal(err)
-	}
-}
-
-// spaHandler ... (unverändert)
-func spaHandler(assets fs.FS) http.HandlerFunc {
-	fileServer := http.FileServer(http.FS(assets))
-	return func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		f, err := assets.Open(path)
-		if err != nil {
-			r.URL.Path = "/"
-		} else {
-			f.Close()
-		}
-		fileServer.ServeHTTP(w, r)
 	}
 }

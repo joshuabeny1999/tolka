@@ -117,6 +117,7 @@ Add these to your `.env` file or Docker environment:
 # Basic Auth Credentials
 AUTH_USERNAME=admin
 AUTH_PASSWORD=change_me_to_something_secure
+WS_TOKEN=change_me_to_something_secure
 ```
 
 ## 📄 License

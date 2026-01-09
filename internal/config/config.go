@@ -12,6 +12,7 @@ type Config struct {
 	Port           string
 	AuthUsername   string
 	AuthPassword   string
+	WsToken        string
 }
 
 func Load() *Config {
@@ -29,11 +30,13 @@ func Load() *Config {
 
 	authUsername := os.Getenv("AUTH_USERNAME")
 	authPassword := os.Getenv("AUTH_PASSWORD")
+	wsToken := os.Getenv("WS_TOKEN")
 
 	return &Config{
 		DeepgramAPIKey: apiKey,
 		Port:           port,
 		AuthUsername:   authUsername,
 		AuthPassword:   authPassword,
+		WsToken:        wsToken,
 	}
 }
