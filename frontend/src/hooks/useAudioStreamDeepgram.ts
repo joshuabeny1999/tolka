@@ -9,7 +9,7 @@ interface UseAudioStreamReturn {
     error: string | null;
 }
 
-export const useAudioStream = (wsUrl: string): UseAudioStreamReturn => {
+export const useAudioStreamDeepgram = (wsUrl: string): UseAudioStreamReturn => {
     const [isRecording, setIsRecording] = useState(false);
     const [committedText, setCommittedText] = useState('');
     const [partialText, setPartialText] = useState('');
@@ -42,7 +42,7 @@ export const useAudioStream = (wsUrl: string): UseAudioStreamReturn => {
         };
     }, [stopRecording]);
 
-    
+
     const startRecording = useCallback(async () => {
         setError(null);
         isRecordingRef.current = true;

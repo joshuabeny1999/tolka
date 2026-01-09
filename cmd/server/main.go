@@ -10,7 +10,8 @@ import (
 	"github.com/joshuabeny1999/tolka/internal/middleware"
 	"github.com/joshuabeny1999/tolka/internal/spa"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
-	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram"
+	"github.com/joshuabeny1999/tolka/internal/transcription/azure"
+	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram" // Importieren!
 	"github.com/joshuabeny1999/tolka/internal/ws"
 )
 
@@ -22,19 +23,28 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// 1. API & WebSocket
+	// 1. API Helper
 	mux.HandleFunc("/api/hello", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"message": "Hello from Go Backend!"}`))
 	})
 
-	// 2. WebSocket Endpoint
-	factory := func() transcription.Service {
+	// ---------------------------------------------------------
+	// 2. WebSocket Endpoints (Dual Setup)
+	// ---------------------------------------------------------
+
+	// A) Azure Endpoint -> /ws/azure
+	azureFactory := func() transcription.Service {
+		return azure.New(cfg.AzureAPIKey, cfg.AzureRegion)
+	}
+	mux.Handle("/ws/azure", ws.NewHandler(azureFactory))
+
+	// B) Deepgram Endpoint -> /ws/deepgram
+	deepgramFactory := func() transcription.Service {
+		// Deepgram Config (Endpointing beachten!)
 		return deepgram.New(cfg.DeepgramAPIKey)
 	}
-
-	wsHandler := ws.NewHandler(factory)
-	mux.Handle("/ws", wsHandler)
+	mux.Handle("/ws/deepgram", ws.NewHandler(deepgramFactory))
 
 	// 3. Static Assets
 	distFS, err := fs.Sub(content, "dist")
@@ -45,6 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not initialize SPA handler:", err)
 	}
+	// Alles was nicht /api oder /ws ist, geht an die SPA
 	mux.Handle("/", spaHandler)
 
 	// 4. Auth

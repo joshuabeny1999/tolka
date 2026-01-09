@@ -41,10 +41,11 @@ func (p *Provider) Connect(ctx context.Context) error {
 	// 1. Setup Options (Swiss German, Nova-3, Interim)
 	options := &interfaces.LiveTranscriptionOptions{
 		Model:          "nova-3",
-		Language:       "de-CH",
+		Language:       "de-ch",
 		SmartFormat:    true,
 		InterimResults: true,
-		Endpointing:    "300",
+		Endpointing:    "500",
+		UtteranceEndMs: "1000",
 		// Diarization: true, // Uncomment later when needed
 	}
 
@@ -86,6 +87,9 @@ func (p *Provider) SendAudio(data []byte) error {
 		return nil // Or error "not connected"
 	}
 	// Write chunk into the pipe. Deepgram reads it on the other side.
+	if len(data) == 0 {
+		return nil
+	}
 	_, err := p.inputWriter.Write(data)
 	return err
 }

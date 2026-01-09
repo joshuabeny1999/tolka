@@ -9,6 +9,8 @@ import (
 
 type Config struct {
 	DeepgramAPIKey string
+	AzureAPIKey    string
+	AzureRegion    string
 	Port           string
 	AuthUsername   string
 	AuthPassword   string
@@ -32,8 +34,13 @@ func Load() *Config {
 	authPassword := os.Getenv("AUTH_PASSWORD")
 	wsToken := os.Getenv("WS_TOKEN")
 
+	azureApiKey := os.Getenv("AZURE_API_KEY")
+	azureRegion := os.Getenv("AZURE_REGION")
+
 	return &Config{
 		DeepgramAPIKey: apiKey,
+		AzureAPIKey:    azureApiKey,
+		AzureRegion:    azureRegion,
 		Port:           port,
 		AuthUsername:   authUsername,
 		AuthPassword:   authPassword,
