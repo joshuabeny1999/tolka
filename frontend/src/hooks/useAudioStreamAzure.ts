@@ -22,7 +22,10 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
     const streamRef = useRef<MediaStream | null>(null);
     const isRecordingRef = useRef(false);
 
-    // 1. Hilfsfunktion: Downsampling (z.B. 48kHz -> 16kHz)
+    // NEW: Keeps track of the last committed segment to prevent duplicates
+    const lastCommittedSegmentRef = useRef<string | null>(null);
+
+    // 1. Helper: Downsampling (e.g. 48kHz -> 16kHz)
     const downsampleBuffer = (buffer: Float32Array, inputSampleRate: number, targetSampleRate: number) => {
         if (inputSampleRate === targetSampleRate) {
             return buffer;
@@ -36,7 +39,6 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
 
         while (offsetResult < result.length) {
             const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
-            // Einfacher Durchschnitt für besseres Audio als nur "Weglassen"
             let accum = 0, count = 0;
             for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
                 accum += buffer[i];
@@ -49,7 +51,7 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
         return result;
     };
 
-    // 2. Hilfsfunktion: Float32 zu Int16 (Azure Format)
+    // 2. Helper: Float32 to Int16 (Azure Format)
     const convertFloat32ToInt16 = (buffer: Float32Array) => {
         let l = buffer.length;
         const buf = new Int16Array(l);
@@ -63,6 +65,9 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
     const stopRecording = useCallback(() => {
         isRecordingRef.current = false;
         setIsRecording(false);
+
+        // Reset the duplicate tracker so new sessions start fresh
+        lastCommittedSegmentRef.current = null;
 
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -87,24 +92,20 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
         setPartialText('');
     }, []);
 
-    // Diese Funktion muss innerhalb von startRecording oder als useCallback definiert sein,
-    // um Scope-Probleme zu vermeiden. Ich ziehe sie hier rein.
     const startRecording = useCallback(async () => {
         setError(null);
         isRecordingRef.current = true;
+        // Reset check on start just to be safe
+        lastCommittedSegmentRef.current = null;
 
         try {
             const socket = new WebSocket(wsUrl);
             socketRef.current = socket;
 
-            // Audio-Logik kapseln
             const initAudio = async () => {
-                // WICHTIG: Keine SampleRate erzwingen! Das verursacht den Fehler.
-                // Wir nehmen, was der Browser uns gibt (meist 44.1k oder 48k).
                 const context = new (window.AudioContext || (window as any).webkitAudioContext)();
                 audioContextRef.current = context;
 
-                // Auch beim Mikrofon keine Rate erzwingen
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
@@ -124,13 +125,8 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
                 processor.onaudioprocess = (e) => {
                     if (socket.readyState === WebSocket.OPEN) {
                         const inputData = e.inputBuffer.getChannelData(0);
-
-                        // A) Erst Downsamplen (z.B. 48000 -> 16000)
                         const downsampledData = downsampleBuffer(inputData, context.sampleRate, 16000);
-
-                        // B) Dann zu Int16 konvertieren
                         const pcmData = convertFloat32ToInt16(downsampledData);
-
                         socket.send(pcmData);
                     }
                 };
@@ -150,8 +146,8 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
                     await initAudio();
                     setIsRecording(true);
                 } catch (audioErr) {
-                    console.error("Audio Init Fehler:", audioErr);
-                    setError('Mikrofon konnte nicht gestartet werden (AudioContext).');
+                    console.error("Audio Init Error:", audioErr);
+                    setError('Microphone could not be started.');
                     stopRecording();
                 }
             };
@@ -161,10 +157,22 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
                     const data = JSON.parse(event.data);
                     if (!data.text) return;
 
+                    const trimmedText = data.text.trim();
+                    if (!trimmedText) return;
+
                     if (data.is_partial) {
-                        setPartialText(data.text);
+                        setPartialText(trimmedText);
                     } else {
-                        setCommittedText((prev) => (prev ? `${prev} ${data.text}` : data.text));
+                        // --- DUPLICATE CHECK START ---
+                        // If the new text is identical to the last one we committed, ignore it.
+                        if (lastCommittedSegmentRef.current === trimmedText) {
+                            console.warn('Dropped duplicate segment:', trimmedText);
+                            return;
+                        }
+
+                        lastCommittedSegmentRef.current = trimmedText;
+
+                        setCommittedText((prev) => (prev ? `${prev} ${trimmedText}` : trimmedText));
                         setPartialText('');
                     }
                 } catch (e) {
@@ -173,7 +181,7 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
             };
 
             socket.onerror = () => {
-                if (isRecordingRef.current) setError('WebSocket Fehler');
+                if (isRecordingRef.current) setError('WebSocket Error');
             };
 
             socket.onclose = () => {
@@ -182,10 +190,10 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
 
         } catch (err) {
             console.error(err);
-            setError('Verbindungsfehler');
+            setError('Connection Error');
             isRecordingRef.current = false;
         }
-    }, [wsUrl, stopRecording]); // stopRecording als Dependency wichtig
+    }, [wsUrl, stopRecording]);
 
     useEffect(() => {
         return () => {
