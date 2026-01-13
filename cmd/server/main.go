@@ -12,6 +12,7 @@ import (
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 	"github.com/joshuabeny1999/tolka/internal/transcription/azure"
 	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram" // Importieren!
+	"github.com/joshuabeny1999/tolka/internal/transcription/mock"
 	"github.com/joshuabeny1999/tolka/internal/ws"
 )
 
@@ -45,6 +46,12 @@ func main() {
 		return deepgram.New(cfg.DeepgramAPIKey)
 	}
 	mux.Handle("/ws/deepgram", ws.NewHandler(deepgramFactory))
+
+	// C) Mock Endpoint -> /ws/mock
+	mockFactory := func() transcription.Service {
+		return mock.New()
+	}
+	mux.Handle("/ws/mock", ws.NewHandler(mockFactory))
 
 	// 3. Static Assets
 	distFS, err := fs.Sub(content, "dist")

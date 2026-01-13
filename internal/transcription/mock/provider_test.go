@@ -17,7 +17,6 @@ func TestProvider_EmitFakeResult(t *testing.T) {
 	expectedText := "Test Transcription"
 
 	// Execution: Simulate an incoming transcription result
-	// We do this in a goroutine to ensure it doesn't block if the channel buffer is full (though buffer is 100)
 	go provider.EmitFakeResult(expectedText)
 
 	// Assertion: Read from the result channel
@@ -27,7 +26,11 @@ func TestProvider_EmitFakeResult(t *testing.T) {
 			t.Errorf("Expected text '%s', got '%s'", expectedText, result.Text)
 		}
 		if result.IsPartial {
-			t.Error("Expected IsPartial to be false by default")
+			t.Error("Expected IsPartial to be false by default for FakeResult")
+		}
+		// EmitFakeResult setzt Speaker standardmässig auf "System"
+		if result.Speaker != "System" {
+			t.Errorf("Expected speaker 'System', got '%s'", result.Speaker)
 		}
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for result from mock provider")
@@ -36,13 +39,23 @@ func TestProvider_EmitFakeResult(t *testing.T) {
 
 func TestProvider_SendAudio(t *testing.T) {
 	provider := mock.New()
-	expectedText := "Ich höre 15 Bytes... "
 
-	// SendAudio should not panic and return nil error
-	err := provider.SendAudio([]byte("fake-audio-data"))
-	if err != nil {
-		t.Errorf("SendAudio failed: %v", err)
-	}
+	// Das Skript beginnt mit: "Hallo zusammen, können wir mit dem Daily starten?"
+	// Das erste Wort ist "Hallo".
+	expectedText := "Hallo"
+	expectedSpeaker := "Speaker 1"
+
+	// SendAudio hat nun einen Tick-Counter (< 3), um Geschwindigkeit zu simulieren.
+	// Wir müssen es also mehrmals aufrufen, um ein Resultat zu erhalten.
+	dummyData := []byte("fake-audio-data")
+
+	go func() {
+		// Wir senden 3 Pakete, um den internen Counter (0, 1, 2) zu füllen und den Trigger auszulösen.
+		for i := 0; i < 3; i++ {
+			_ = provider.SendAudio(dummyData)
+			time.Sleep(10 * time.Millisecond) // Kurze Pause zur Sicherheit
+		}
+	}()
 
 	select {
 	case result := <-provider.ResultChan():
@@ -50,12 +63,14 @@ func TestProvider_SendAudio(t *testing.T) {
 			t.Errorf("Expected text '%s', got '%s'", expectedText, result.Text)
 		}
 		if !result.IsPartial {
-			t.Error("Expected IsPartial to be true")
+			t.Error("Expected IsPartial to be true for the first word")
+		}
+		if result.Speaker != expectedSpeaker {
+			t.Errorf("Expected speaker '%s', got '%s'", expectedSpeaker, result.Speaker)
 		}
 	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for result from mock provider")
+		t.Fatal("Timeout waiting for result from mock provider. Did the tick counter logic prevent emission?")
 	}
-
 }
 
 func TestProvider_Close(t *testing.T) {
@@ -68,7 +83,6 @@ func TestProvider_Close(t *testing.T) {
 	}
 
 	// Assertion: Verify channels are closed
-	// Reading from a closed channel returns the zero value and false immediately
 	select {
 	case _, ok := <-provider.ResultChan():
 		if ok {
