@@ -1,17 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import type {TranscriptSegment, UseAudioStreamReturn} from '../types';
 
-interface UseAudioStreamReturn {
-    isRecording: boolean;
-    committedText: string;
-    partialText: string;
-    startRecording: () => Promise<void>;
-    stopRecording: () => void;
-    error: string | null;
-}
 
 export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
     const [isRecording, setIsRecording] = useState(false);
-    const [committedText, setCommittedText] = useState('');
+    const [segments, setSegments] = useState<TranscriptSegment[]>([]);
     const [partialText, setPartialText] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -22,10 +15,23 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
     const streamRef = useRef<MediaStream | null>(null);
     const isRecordingRef = useRef(false);
 
-    // NEW: Keeps track of the last committed segment to prevent duplicates
     const lastCommittedSegmentRef = useRef<string | null>(null);
 
-    // 1. Helper: Downsampling (e.g. 48kHz -> 16kHz)
+    const handleFinalResult = (newSentence: string) => {
+        const newSegment: TranscriptSegment = {
+            id: crypto.randomUUID(), // Oder Date.now().toString()
+            text: newSentence.trim(),
+            timestamp: Date.now(),
+            isFinal: true
+        };
+
+        // Array update statt String concatenation
+        setSegments(prev => [...prev, newSegment]);
+
+        // Partial leeren, da Satz committed ist
+        setPartialText("");
+    };
+
     const downsampleBuffer = (buffer: Float32Array, inputSampleRate: number, targetSampleRate: number) => {
         if (inputSampleRate === targetSampleRate) {
             return buffer;
@@ -172,7 +178,7 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
 
                         lastCommittedSegmentRef.current = trimmedText;
 
-                        setCommittedText((prev) => (prev ? `${prev} ${trimmedText}` : trimmedText));
+                        handleFinalResult(trimmedText);
                         setPartialText('');
                     }
                 } catch (e) {
@@ -203,7 +209,7 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
 
     return {
         isRecording,
-        committedText,
+        segments,
         partialText,
         startRecording,
         stopRecording,

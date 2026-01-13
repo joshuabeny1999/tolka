@@ -1,18 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-
-interface UseAudioStreamReturn {
-    isRecording: boolean;
-    committedText: string;
-    partialText: string;
-    startRecording: () => Promise<void>;
-    stopRecording: () => void;
-    error: string | null;
-}
+import type {TranscriptSegment, UseAudioStreamReturn} from '../types';
 
 export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
     const [isRecording, setIsRecording] = useState(false);
-    const [committedText, setCommittedText] = useState('');
-    const [partialText, setPartialText] = useState('');
+    const [segments, setSegments] = useState<TranscriptSegment[]>([]);    const [partialText, setPartialText] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     const socketRef = useRef<WebSocket | null>(null);
@@ -20,6 +11,21 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
     const simulationIntervalRef = useRef<number | null>(null);
 
     const isRecordingRef = useRef(false);
+
+    const handleFinalResult = (newSentence: string) => {
+        const newSegment: TranscriptSegment = {
+            id: crypto.randomUUID(), // Oder Date.now().toString()
+            text: newSentence.trim(),
+            timestamp: Date.now(),
+            isFinal: true
+        };
+
+        // Array update statt String concatenation
+        setSegments(prev => [...prev, newSegment]);
+
+        // Partial leeren, da Satz committed ist
+        setPartialText("");
+    };
 
     const stopRecording = useCallback(() => {
         isRecordingRef.current = false;
@@ -81,10 +87,7 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
                     if (data.is_partial) {
                         setPartialText(data.text);
                     } else {
-                        setCommittedText((prev) => {
-                            return prev ? `${prev} ${data.text}` : data.text;
-                        });
-                        setPartialText('');
+                        handleFinalResult(data.text);
                     }
                 } catch (err) {
                     console.error('JSON Error:', err);
@@ -113,7 +116,7 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
 
     return {
         isRecording,
-        committedText,
+        segments,
         partialText,
         startRecording,
         stopRecording,
