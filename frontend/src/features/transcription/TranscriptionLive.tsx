@@ -3,9 +3,12 @@ import { useTranscription } from "./hooks/useTranscription";
 import { LobbyView } from "./components/LobbyView";
 import { ActiveSessionView } from "./components/ActiveSessionView";
 import { Loader2 } from "lucide-react";
+import {useWakeLock} from "@/features/transcription/hooks/useWakeLock.ts";
 
 export function TranscriptionLive() {
     const { roomId, role, provider: sessionProvider, isLoading: sessionLoading, createSession } = useSession();
+
+    useWakeLock(!!roomId);
 
     // Hooks werden hier initialisiert, aber ActiveSessionView bekommt nur die Daten
     const {
@@ -28,6 +31,8 @@ export function TranscriptionLive() {
     if (!roomId) {
         return <LobbyView onCreateSession={createSession} />;
     }
+
+
 
     // 3. Active Session
     return (
