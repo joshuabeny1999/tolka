@@ -14,5 +14,6 @@ export interface UseAudioStreamReturn {
     partialText: string;
     startRecording: () => Promise<void>;
     stopRecording: () => void;
+    connectViewer: () => void;
     error: string | null;
 }

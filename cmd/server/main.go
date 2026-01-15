@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"io/fs"
 	"log"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 	"github.com/joshuabeny1999/tolka/internal/spa"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 	"github.com/joshuabeny1999/tolka/internal/transcription/azure"
-	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram" // Importieren!
+	"github.com/joshuabeny1999/tolka/internal/transcription/deepgram"
 	"github.com/joshuabeny1999/tolka/internal/transcription/mock"
 	"github.com/joshuabeny1999/tolka/internal/ws"
 )
@@ -30,30 +31,50 @@ func main() {
 		w.Write([]byte(`{"message": "Hello from Go Backend!"}`))
 	})
 
-	// ---------------------------------------------------------
-	// 2. WebSocket Endpoints (Dual Setup)
-	// ---------------------------------------------------------
+	// 2. WebSocket Hub
+	hub := ws.NewHub()
 
-	// A) Azure Endpoint -> /ws/azure
-	azureFactory := func() transcription.Service {
+	// Register Factories
+	hub.RegisterProvider("azure", func() transcription.Service {
 		return azure.New(cfg.AzureAPIKey, cfg.AzureRegion)
-	}
-	mux.Handle("/ws/azure", ws.NewHandler(azureFactory))
-
-	// B) Deepgram Endpoint -> /ws/deepgram
-	deepgramFactory := func() transcription.Service {
-		// Deepgram Config (Endpointing beachten!)
+	})
+	hub.RegisterProvider("deepgram", func() transcription.Service {
 		return deepgram.New(cfg.DeepgramAPIKey)
-	}
-	mux.Handle("/ws/deepgram", ws.NewHandler(deepgramFactory))
-
-	// C) Mock Endpoint -> /ws/mock
-	mockFactory := func() transcription.Service {
+	})
+	hub.RegisterProvider("mock", func() transcription.Service {
 		return mock.New()
-	}
-	mux.Handle("/ws/mock", ws.NewHandler(mockFactory))
+	})
 
-	// 3. Static Assets
+	// 3. API: Create Session
+	// POST /api/session?provider=mock
+	mux.HandleFunc("/api/session", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		provider := r.URL.Query().Get("provider")
+		if provider == "" {
+			provider = "mock" // default
+		}
+
+		id, err := hub.CreateSession(provider)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"roomId": id,
+			"status": "created",
+		})
+	})
+
+	// 4. WebSocket Endpoint
+	mux.Handle("/ws/connect", hub)
+
+	// 5. Static Assets
 	distFS, err := fs.Sub(content, "dist")
 	if err != nil {
 		log.Fatal("Konnte dist Ordner nicht einbinden:", err)
@@ -65,10 +86,10 @@ func main() {
 	// Alles was nicht /api oder /ws ist, geht an die SPA
 	mux.Handle("/", spaHandler)
 
-	// 4. Auth
+	// 5. Auth
 	protectedMux := middleware.BasicAuth(mux, cfg.AuthUsername, cfg.AuthPassword, cfg.WsToken)
 
-	// 5. Start
+	// 6. Start
 	addr := ":" + cfg.Port
 	log.Printf("Server läuft auf %s", addr)
 	if err := http.ListenAndServe(addr, protectedMux); err != nil {

@@ -1,4 +1,4 @@
-import { TranscriptionLive } from "@/features/TranscriptionLive";
+import { TranscriptionLive } from "@/features/transcription/TranscriptionLive";
 
 function App() {
     return (

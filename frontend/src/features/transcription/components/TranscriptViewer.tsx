@@ -1,6 +1,6 @@
 import { useEffect, useRef, type UIEventHandler } from "react";
 import { cn } from "@/lib/utils";
-import type {TranscriptSegment} from "@/features/types";
+import type {TranscriptSegment} from "@/features/transcription/types";
 
 interface TranscriptViewerProps {
     segments: TranscriptSegment[];
