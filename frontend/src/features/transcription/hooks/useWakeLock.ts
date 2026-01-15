@@ -4,29 +4,47 @@ export function useWakeLock(enabled: boolean = true) {
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
     const requestLock = useCallback(async () => {
-        if (!enabled) return;
+        // Wir definieren die Logik in einer internen Funktion,
+        // damit wir sie rekursiv im Error-Handler aufrufen können.
+        const executeLock = async () => {
+            if (!enabled) return;
 
-        if (!('wakeLock' in navigator)) {
-            console.warn("Screen Wake Lock API not supported.");
-            return;
-        }
+            // Feature Detection
+            if (!('wakeLock' in navigator)) return;
 
-        try {
-            if (wakeLockRef.current !== null && !wakeLockRef.current.released) {
-                return;
+            try {
+                if (wakeLockRef.current !== null && !wakeLockRef.current.released) {
+                    return;
+                }
+
+                const lock = await navigator.wakeLock.request('screen');
+                wakeLockRef.current = lock;
+                console.log("Wake Lock active");
+
+                lock.addEventListener('release', () => {
+                    console.log('Wake Lock released');
+                });
+
+            } catch (err: any) {
+                console.warn(`Wake Lock request failed: ${err.name}`);
+
+                // FIX FOR IOS SAFARI (NotAllowedError):
+                if (err.name === 'NotAllowedError') {
+                    const retryOnInteraction = () => {
+                        executeLock();
+
+                        document.removeEventListener('click', retryOnInteraction);
+                        document.removeEventListener('touchstart', retryOnInteraction);
+                    };
+
+                    document.addEventListener('click', retryOnInteraction);
+                    document.addEventListener('touchstart', retryOnInteraction);
+                }
             }
+        };
 
-            const lock = await navigator.wakeLock.request('screen');
-            wakeLockRef.current = lock;
-            console.log("Wake Lock active");
-
-            lock.addEventListener('release', () => {
-                console.log('Wake Lock released');
-            });
-
-        } catch (err) {
-            console.error(`Wake Lock request failed: ${err}`);
-        }
+        // Starten der Logik
+        await executeLock();
     }, [enabled]);
 
     const releaseLock = useCallback(async () => {
@@ -47,7 +65,6 @@ export function useWakeLock(enabled: boolean = true) {
             releaseLock();
         }
 
-        // 2. Re-acquire on visibility change
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && enabled) {
                 requestLock();
@@ -56,7 +73,6 @@ export function useWakeLock(enabled: boolean = true) {
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Cleanup
         return () => {
             releaseLock();
             document.removeEventListener('visibilitychange', handleVisibilityChange);
