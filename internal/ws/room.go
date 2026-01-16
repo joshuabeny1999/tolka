@@ -4,9 +4,14 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 )
+
+// idleTimeout determines how long a room waits for the first user
+// or remains open after the last user leaves.
+const idleTimeout = 2 * time.Minute
 
 type Room struct {
 	ID          string
@@ -16,6 +21,9 @@ type Room struct {
 	unregister  chan *Client
 	audioIngest chan []byte
 	service     transcription.Service
+
+	// Timer to handle inactivity
+	idleTimer *time.Timer
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -34,8 +42,12 @@ func NewRoom(id string, service transcription.Service) *Room {
 		unregister:  make(chan *Client),
 		audioIngest: make(chan []byte),
 		service:     service,
-		ctx:         ctx,
-		cancel:      cancel,
+
+		// Start timer immediately. If no one joins within idleTimeout, room dies.
+		idleTimer: time.NewTimer(idleTimeout),
+
+		ctx:    ctx,
+		cancel: cancel,
 	}
 }
 
@@ -55,16 +67,19 @@ func (r *Room) ReleaseHost() {
 	r.hasHost = false
 }
 
+func (r *Room) Close() {
+	r.cancel()
+}
+
 // Run starts the room loop. cleanupFunc is called when room closes.
 func (r *Room) Run(cleanupFunc func()) {
 	defer func() {
+		// Stop the timer to prevent leaks if function exits for other reasons
+		r.idleTimer.Stop()
 		cleanupFunc()
 		r.cancel()
 		r.service.Close()
 	}()
-
-	// Auto-close room after 1 hour or if empty for too long (logic can be added here)
-	// For now, we rely on context cancellation or manual implementation.
 
 	if err := r.service.Connect(r.ctx); err != nil {
 		log.Printf("Room %s: Service connect failed: %v", r.ID, err)
@@ -76,6 +91,14 @@ func (r *Room) Run(cleanupFunc func()) {
 	for {
 		select {
 		case client := <-r.register:
+			// Client joined: Stop the idle timer
+			if !r.idleTimer.Stop() {
+				select {
+				case <-r.idleTimer.C:
+				default:
+				}
+			}
+
 			r.clients[client] = true
 
 		case client := <-r.unregister:
@@ -85,9 +108,12 @@ func (r *Room) Run(cleanupFunc func()) {
 				if client.isHost {
 					r.ReleaseHost()
 				}
+
+				if len(r.clients) == 0 {
+					log.Printf("Room %s is empty. Closing in %v...", r.ID, idleTimeout)
+					r.idleTimer.Reset(idleTimeout)
+				}
 			}
-			// If needed: Close room if no clients left
-			// if len(r.clients) == 0 { return }
 
 		case result, ok := <-r.service.ResultChan():
 			if !ok {
@@ -99,7 +125,10 @@ func (r *Room) Run(cleanupFunc func()) {
 			if !ok {
 				return
 			}
-			// log error but keep running
+
+		case <-r.idleTimer.C:
+			log.Printf("Room %s idle timeout reached. Shutting down.", r.ID)
+			return
 
 		case <-r.ctx.Done():
 			return

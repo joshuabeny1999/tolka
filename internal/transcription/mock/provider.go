@@ -71,7 +71,7 @@ func (p *Provider) SendAudio(data []byte) error {
 	// Wir wollen nicht bei jedem kleinen Audio-Paket ein neues Wort senden,
 	// sondern z.B. nur jedes 3. Paket (simuliert Sprechgeschwindigkeit).
 	p.tickCounter++
-	if p.tickCounter < 3 {
+	if p.tickCounter < 2 {
 		return nil
 	}
 	p.tickCounter = 0

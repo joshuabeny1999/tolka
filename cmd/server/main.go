@@ -48,27 +48,45 @@ func main() {
 	// 3. API: Create Session
 	// POST /api/session?provider=mock
 	mux.HandleFunc("/api/session", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		if r.Method == http.MethodPost {
+
+			provider := r.URL.Query().Get("provider")
+			if provider == "" {
+				provider = "mock" // default
+			}
+
+			id, err := hub.CreateSession(provider)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"roomId": id,
+				"status": "created",
+			})
 			return
 		}
 
-		provider := r.URL.Query().Get("provider")
-		if provider == "" {
-			provider = "mock" // default
-		}
+		if r.Method == http.MethodDelete {
+			roomID := r.URL.Query().Get("room")
+			if roomID == "" {
+				http.Error(w, "Missing room ID", http.StatusBadRequest)
+				return
+			}
 
-		id, err := hub.CreateSession(provider)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			if err := hub.CloseSession(roomID); err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Room closed"))
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"roomId": id,
-			"status": "created",
-		})
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
 	// 4. WebSocket Endpoint

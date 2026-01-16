@@ -61,11 +61,10 @@ export function useSession() {
 
             const data = await res.json();
 
-            // WICHTIG: Host-Role in die URL schreiben, damit Reload funktioniert
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.set("room", data.roomId);
             newUrl.searchParams.set("provider", selectedProvider);
-            newUrl.searchParams.set("role", "host"); // <--- Hier speichern wir den State
+            newUrl.searchParams.set("role", "host");
 
             window.history.pushState({}, "", newUrl);
 
@@ -86,5 +85,34 @@ export function useSession() {
         }
     }, []);
 
-    return { ...session, createSession };
+    const closeSession = useCallback(async () => {
+        if (!session.roomId) return;
+
+        // Only the host destroys the room on the server
+        if (session.role === 'host') {
+            try {
+                await fetch(`/api/session?room=${session.roomId}`, {
+                    method: "DELETE"
+                });
+            } catch (err) {
+                console.error("Failed to close session on server", err);
+            }
+        }
+
+        // Clean URL
+        const newUrl = new URL(window.location.href);
+        newUrl.search = ""; // Remove all query params
+        window.history.pushState({}, "", newUrl);
+
+        setSession({
+            roomId: null,
+            role: null,
+            provider: "azure",
+            isLoading: false,
+            error: null,
+        });
+    }, [session.roomId, session.role]);
+
+
+    return { ...session, createSession, closeSession };
 }

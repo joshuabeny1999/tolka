@@ -6,22 +6,23 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 )
 
-// MockService stub
+// 0. Minimal MockService to satisfy interfaces
 type MockService struct {
 	resultChan chan transcription.TranscriptResult
 	errorChan  chan error
 }
 
 func (m *MockService) Connect(ctx context.Context) error                 { return nil }
-func (m *MockService) Close() error                                      { return nil }
 func (m *MockService) SendAudio(data []byte) error                       { return nil }
 func (m *MockService) ResultChan() <-chan transcription.TranscriptResult { return m.resultChan }
 func (m *MockService) ErrorChan() <-chan error                           { return m.errorChan }
+func (m *MockService) Close() error                                      { return nil }
 
 func TestCompleteSessionFlow(t *testing.T) {
 	// 1. Setup Hub
@@ -33,7 +34,7 @@ func TestCompleteSessionFlow(t *testing.T) {
 		}
 	})
 
-	// 2. Create Session manually (simulating API call)
+	// 2. Create Session manually
 	roomID, err := hub.CreateSession("test")
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
@@ -47,7 +48,7 @@ func TestCompleteSessionFlow(t *testing.T) {
 	// 4. Try connecting to INVALID room
 	_, _, err = websocket.DefaultDialer.Dial(wsBase+"?room=wrongID", nil)
 	if err == nil {
-		t.Error("Expected error connecting to non-existent room")
+		t.Error("Expected error connecting to non-existent room, but got nil")
 	}
 
 	// 5. Connect HOST to VALID room
@@ -61,9 +62,10 @@ func TestCompleteSessionFlow(t *testing.T) {
 	// 6. Connect Second HOST (Should Fail)
 	_, resp, err := websocket.DefaultDialer.Dial(hostURL, nil)
 	if err == nil {
-		t.Error("Expected error for second host")
+		t.Error("Expected error for second host, but got connection")
 	}
-	if resp.StatusCode != http.StatusConflict {
+	// Check specific status code if response is available
+	if resp != nil && resp.StatusCode != http.StatusConflict {
 		t.Errorf("Expected 409 Conflict, got %d", resp.StatusCode)
 	}
 
@@ -75,10 +77,31 @@ func TestCompleteSessionFlow(t *testing.T) {
 	}
 	viewerConn.Close()
 
-	// 8. Cleanup Check
-	// Give time for async cleanup if implemented, or check internal state
+	// 8. Cleanup Check (Positive)
+	// The room MUST exist while the host is connected
 	if hub.getRoom(roomID) == nil {
-		t.Error("Room should exist while host is connected")
+		t.Error("Room should exist while host is connected, but getRoom returned nil")
+	}
+
+	// 9. Close Hub (Simulate DELETE /api/session)
+	err = hub.CloseSession(roomID)
+	if err != nil {
+		t.Errorf("CloseSession returned error: %v", err)
+	}
+
+	// 10. Verify Cleanup (Async)
+	// Cleanup happens in a goroutine, so we wait briefly
+	success := false
+	for i := 0; i < 10; i++ {
+		if hub.getRoom(roomID) == nil {
+			success = true
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if !success {
+		t.Error("Room was not removed from hub after CloseSession")
 	}
 }
 

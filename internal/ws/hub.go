@@ -118,6 +118,19 @@ func (h *Hub) getRoom(id string) *Room {
 	return h.rooms[id]
 }
 
+func (h *Hub) CloseSession(id string) error {
+	h.mu.RLock()
+	room, ok := h.rooms[id]
+	h.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("room %s not found", id)
+	}
+
+	room.Close()
+	return nil
+}
+
 // generateID creates a random 16-byte hex string (UUID-like)
 func generateID() string {
 	b := make([]byte, 16)

@@ -6,14 +6,13 @@ import { Loader2 } from "lucide-react";
 import {useWakeLock} from "@/features/transcription/hooks/useWakeLock.ts";
 
 export function TranscriptionLive() {
-    const { roomId, role, provider: sessionProvider, isLoading: sessionLoading, createSession } = useSession();
+    const { roomId, role, provider: sessionProvider, isLoading: sessionLoading, createSession, closeSession } = useSession();
 
     useWakeLock(!!roomId);
 
     // Hooks werden hier initialisiert, aber ActiveSessionView bekommt nur die Daten
     const {
         provider,
-        setProvider,
         isRecording,
         toggleRecording,
         segments,
@@ -40,13 +39,13 @@ export function TranscriptionLive() {
             roomId={roomId}
             role={role}
             provider={provider}
-            setProvider={setProvider}
             isRecording={isRecording}
             toggleRecording={toggleRecording}
             segments={segments}
             partialText={partialText}
             error={error}
             meta={meta}
+            onLeave={closeSession}
         />
     );
 }

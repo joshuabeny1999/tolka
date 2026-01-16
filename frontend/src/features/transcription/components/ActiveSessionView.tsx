@@ -4,7 +4,7 @@ import { TranscriptViewer } from "./TranscriptViewer";
 import { Controls } from "./Controls";
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "@/components/ui/button";
-import {Copy, Check, Users} from "lucide-react";
+import {Copy, Check, Users, XCircle, LogOut} from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -21,26 +21,25 @@ interface ActiveSessionViewProps {
     roomId: string;
     role: "host" | "viewer" | null;
     provider: ProviderType;
-    setProvider: (provider: ProviderType) => void;
-    // Wir übergeben die Daten direkt als Props, statt das ganze Hook-Objekt
     isRecording: boolean;
     segments: TranscriptSegment[];
     partialText: string;
     error: string | null;
     meta: { name: string; color: string };
     toggleRecording: (val: boolean) => void;
+    onLeave: () => void;
 }
 
 export function ActiveSessionView({
                                       role,
                                       provider,
-                                      setProvider,
                                       isRecording,
                                       segments,
                                       partialText,
                                       error,
                                       meta,
-                                      toggleRecording
+                                      toggleRecording,
+                                      onLeave
                                   }: ActiveSessionViewProps) {
     const [fontSize, setFontSize] = useState(24);
     const [autoScroll, setAutoScroll] = useState(true);
@@ -66,6 +65,25 @@ export function ActiveSessionView({
                 <div className="flex items-center gap-3">
                     <div className={`w-2.5 h-2.5 rounded-full transition-colors ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
                     <h2 className="font-bold tracking-tight hidden sm:block">Tolka Live</h2>
+
+                    <Button
+                        variant={role === 'host' ? "destructive" : "ghost"}
+                        size="sm"
+                        onClick={onLeave}
+                        className="gap-2 h-8 px-3"
+                    >
+                        {role === 'host' ? (
+                            <>
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline text-xs font-medium">Beenden</span>
+                            </>
+                        ) : (
+                            <>
+                                <LogOut className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline text-xs font-medium">Verlassen</span>
+                            </>
+                        )}
+                    </Button>
 
                     {/* Invite Dialog - Verbessertes UI */}
                     {role === 'host' && (
@@ -143,10 +161,7 @@ export function ActiveSessionView({
                 setFontSize={setFontSize}
                 isRecording={isRecording}
                 onToggleRecording={toggleRecording}
-                engineName={meta.name}
                 accentColor={meta.color}
-                provider={provider}
-                setProvider={setProvider}
                 autoScroll={autoScroll}
                 setAutoScroll={setAutoScroll}
                 readOnly={role === 'viewer'}

@@ -1,38 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuLabel,
-    DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
-import {
     Mic,
     MicOff,
-    Settings,
     AArrowUp,
     AArrowDown,
     ArrowDownToLine,
-    Check,
-    Cloud,
-    Activity,
-    TestTube,
     Radio
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ProviderType } from "../types";
 
 interface ControlsProps {
     fontSize: number;
     setFontSize: (size: number) => void;
     isRecording: boolean;
     onToggleRecording: (val: boolean) => void;
-    provider: ProviderType;
-    setProvider: (provider: ProviderType) => void;
     accentColor: string;
-    engineName: string;
     autoScroll: boolean;
     setAutoScroll: (enabled: boolean) => void;
     readOnly?: boolean;
@@ -43,10 +26,6 @@ export function Controls({
                              setFontSize,
                              isRecording,
                              onToggleRecording,
-                             provider,
-                             setProvider,
-                             accentColor,
-                             engineName,
                              autoScroll,
                              setAutoScroll,
                              readOnly = false
@@ -133,44 +112,7 @@ export function Controls({
                     )}
                 </div>
 
-                {/* Right: Settings (Host Only) */}
                 <div className="flex items-center justify-end min-w-[140px] order-3">
-                    {!readOnly && (
-                        <>
-                            <div className="hidden sm:flex flex-col items-end mr-3">
-                                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Provider</span>
-                                <span className={cn("text-xs font-medium truncate max-w-[120px]", accentColor)}>
-                                    {engineName}
-                                </span>
-                            </div>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
-                                        <Settings className="w-4 h-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
-                                    <DropdownMenuLabel>Audio Engine</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => setProvider('azure')}>
-                                        <Cloud className="mr-2 h-4 w-4 text-blue-500" />
-                                        <span>Azure Speech</span>
-                                        {provider === 'azure' && <Check className="ml-auto h-4 w-4" />}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setProvider('deepgram')}>
-                                        <Activity className="mr-2 h-4 w-4 text-green-500" />
-                                        <span>Deepgram Nova-3</span>
-                                        {provider === 'deepgram' && <Check className="ml-auto h-4 w-4" />}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setProvider('mock')}>
-                                        <TestTube className="mr-2 h-4 w-4 text-orange-500" />
-                                        <span>Simulated Stream</span>
-                                        {provider === 'mock' && <Check className="ml-auto h-4 w-4" />}
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </>
-                    )}
                 </div>
             </div>
         </div>
