@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"strings"
@@ -46,6 +47,7 @@ func (p *Provider) Connect(ctx context.Context) error {
 		InterimResults: true,
 		Endpointing:    "500",
 		UtteranceEndMs: "1000",
+		Diarize:        true,
 		// Diarization: true, // Uncomment later when needed
 	}
 
@@ -122,38 +124,66 @@ type deepgramCallback struct {
 	provider *Provider
 }
 
+// getDominantSpeaker is a helper function and returns the speaker label with the highest number of words
+func getDominantSpeaker(words []api.Word) string {
+	if len(words) == 0 {
+		return "Unknown"
+	}
+
+	counts := make(map[int]int)
+	for _, w := range words {
+		counts[*w.Speaker]++
+	}
+
+	maxCount := -1
+	dominantSpeakerID := -1
+
+	for speakerID, count := range counts {
+		if count > maxCount {
+			maxCount = count
+			dominantSpeakerID = speakerID
+		}
+	}
+
+	if dominantSpeakerID == -1 {
+		return "Unknown"
+	}
+
+	return fmt.Sprintf("Speaker %d", dominantSpeakerID)
+}
+
 // Message is called when Deepgram sends a transcript
 func (c *deepgramCallback) Message(mr *api.MessageResponse) error {
-	// Basic validation
 	if len(mr.Channel.Alternatives) == 0 {
 		return nil
 	}
 
-	transcript := strings.TrimSpace(mr.Channel.Alternatives[0].Transcript)
+	alternative := mr.Channel.Alternatives[0]
+	transcript := strings.TrimSpace(alternative.Transcript)
 
-	// Skip empty results to reduce noise
 	if len(transcript) == 0 {
 		return nil
 	}
 
-	// Map to our domain structure
+	speakerLabel := getDominantSpeaker(alternative.Words)
+
 	result := transcription.TranscriptResult{
 		Text:      transcript,
-		IsPartial: !mr.IsFinal, // If IsFinal is false, it is an interim result
-		Speaker:   "",          // Placeholder for later
+		IsPartial: !mr.IsFinal,
+		Speaker:   speakerLabel,
 	}
 
-	// Non-blocking send to avoid deadlocks in the callback
 	select {
 	case c.provider.resChan <- result:
 	default:
-		log.Println("Deepgram: Warning - Result channel full, dropping frame")
+		log.Println("Deepgram: Warning - Result channel full")
 	}
 
 	return nil
 }
 
 // Boilerplate implementation for other required interface methods
+
 func (c *deepgramCallback) Open(r *api.OpenResponse) error         { return nil }
 func (c *deepgramCallback) Metadata(r *api.MetadataResponse) error { return nil }
 func (c *deepgramCallback) Close(r *api.CloseResponse) error       { return nil }

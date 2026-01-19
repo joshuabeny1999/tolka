@@ -17,6 +17,7 @@ export function TranscriptionLive() {
         toggleRecording,
         segments,
         partialText,
+        partialSpeaker,
         error,
         meta
     } = useTranscription(roomId, role, sessionProvider);
@@ -43,6 +44,7 @@ export function TranscriptionLive() {
             toggleRecording={toggleRecording}
             segments={segments}
             partialText={partialText}
+            partialSpeaker={partialSpeaker}
             error={error}
             meta={meta}
             onLeave={closeSession}

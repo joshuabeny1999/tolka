@@ -1,29 +1,62 @@
 package azure
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"sync" // WICHTIG: Sync importieren
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
 
-	"github.com/Microsoft/cognitive-services-speech-sdk-go/audio"
-	"github.com/Microsoft/cognitive-services-speech-sdk-go/common"
-	"github.com/Microsoft/cognitive-services-speech-sdk-go/speech"
 	"github.com/joshuabeny1999/tolka/internal/transcription"
 )
 
 type Provider struct {
 	subscriptionKey string
 	region          string
-	recognizer      *speech.SpeechRecognizer
-	pushStream      *audio.PushAudioInputStream
-	resChan         chan transcription.TranscriptResult
-	errChan         chan error
 
-	// NEU: Mutex zum Schutz vor Race Conditions beim Schliessen
+	cmd     *exec.Cmd
+	stdin   io.WriteCloser
+	resChan chan transcription.TranscriptResult
+	errChan chan error
+
 	mu       sync.Mutex
 	isClosed bool
+}
+
+// JSON Struktur vom Python Worker
+type pythonResult struct {
+	Text      string `json:"text"`
+	IsPartial bool   `json:"is_partial"`
+	Speaker   string `json:"speaker"`
+}
+
+func getWorkerPath() (string, error) {
+	// 1. Check current directory (Production / Docker)
+	if _, err := os.Stat("azure_worker.py"); err == nil {
+		return "azure_worker.py", nil
+	}
+
+	// 2. Check cmd/server/ directory (Local Development from root)
+	if _, err := os.Stat(filepath.Join("cmd", "server", "azure_worker.py")); err == nil {
+		return filepath.Join("cmd", "server", "azure_worker.py"), nil
+	}
+
+	// 3. Optional: Check relative to executable (if built binary runs elsewhere)
+	ex, err := os.Executable()
+	if err == nil {
+		exPath := filepath.Dir(ex)
+		if _, err := os.Stat(filepath.Join(exPath, "azure_worker.py")); err == nil {
+			return filepath.Join(exPath, "azure_worker.py"), nil
+		}
+	}
+
+	return "", errors.New("azure_worker.py not found in CWD or cmd/server/")
 }
 
 func New(key, region string) *Provider {
@@ -32,146 +65,117 @@ func New(key, region string) *Provider {
 		region:          region,
 		resChan:         make(chan transcription.TranscriptResult, 100),
 		errChan:         make(chan error, 10),
-		isClosed:        false,
 	}
 }
 
 func (p *Provider) Connect(ctx context.Context) error {
-	// ... (Config Teil bleibt gleich wie bei dir) ...
-	config, err := speech.NewSpeechConfigFromSubscription(p.subscriptionKey, p.region)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.isClosed {
+		return errors.New("provider is closed")
+	}
+
+	scriptPath, err := getWorkerPath()
+	if err != nil {
+		return fmt.Errorf("azure initialization failed: %w", err)
+	}
+
+	log.Printf("Azure: Using Python worker at %s", scriptPath)
+
+	// "-u" flag for unbuffered output is crucial!
+	p.cmd = exec.CommandContext(ctx, "python3", "-u", scriptPath, "--key", p.subscriptionKey, "--region", p.region)
+
+	// 2. Pipes verbinden
+	p.stdin, err = p.cmd.StdinPipe()
 	if err != nil {
 		return err
 	}
-	config.SetSpeechRecognitionLanguage("de-CH")
-	// config.SetProfanity(common.Raw) // Optional
 
-	format, err := audio.GetDefaultInputFormat() // Achtung: Hier auf InputFormat achten (siehe unten)
-	if err != nil {
-		return err
-	}
-	p.pushStream, err = audio.CreatePushAudioInputStreamFromFormat(format)
-	if err != nil {
-		return err
-	}
-	audioConfig, err := audio.NewAudioConfigFromStreamInput(p.pushStream)
+	stdout, err := p.cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
-	p.recognizer, err = speech.NewSpeechRecognizerFromConfig(config, audioConfig)
-	if err != nil {
+	// Stderr auch durchleiten für Debugging (landet im Go Log)
+	p.cmd.Stderr = os.Stderr
+
+	// 3. Prozess starten
+	if err := p.cmd.Start(); err != nil {
 		return err
 	}
+	log.Println("Azure: Python worker started")
 
-	// --- Event Handler (Jetzt sicher) ---
+	// 4. Lese-Loop in Goroutine starten
+	go p.readOutput(stdout)
 
-	// Helper Funktion zum sicheren Senden
-	sendResult := func(res transcription.TranscriptResult) {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-
-		// Wenn bereits geschlossen, nichts mehr senden (verhindert Panic)
-		if p.isClosed {
-			return
-		}
-
-		// Non-blocking send: Falls der Channel voll ist (weil Frontend weg),
-		// blockieren wir hier nicht den Azure-Thread.
-		select {
-		case p.resChan <- res:
-		default:
-			// Channel voll oder niemand hört zu -> Nachricht verwerfen
-		}
-	}
-
-	p.recognizer.Recognizing(func(event speech.SpeechRecognitionEventArgs) {
-		text := event.Result.Text
-		if len(text) > 0 {
-			sendResult(transcription.TranscriptResult{
-				Text:      text,
-				IsPartial: true,
-			})
-		}
-	})
-
-	p.recognizer.Recognized(func(event speech.SpeechRecognitionEventArgs) {
-		text := event.Result.Text
-		if len(text) > 0 {
-			sendResult(transcription.TranscriptResult{
-				Text:      text,
-				IsPartial: false,
-			})
-		}
-	})
-
-	p.recognizer.Canceled(func(event speech.SpeechRecognitionCanceledEventArgs) {
-		// Auch Fehler sicher senden
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		if p.isClosed {
-			return
-		}
-
-		err := fmt.Errorf("Azure Canceled: %s (Code: %d)", event.ErrorDetails, event.ErrorCode)
-		log.Println(err)
-
-		if event.Reason == common.Error {
-			select {
-			case p.errChan <- err:
-			default:
-			}
-		}
-	})
-
-	p.recognizer.SessionStarted(func(event speech.SessionEventArgs) {
-		log.Println("Azure: Session started")
-	})
-	p.recognizer.SessionStopped(func(event speech.SessionEventArgs) {
-		log.Println("Azure: Session stopped")
-	})
-
-	// Async Start
-	p.recognizer.StartContinuousRecognitionAsync()
 	return nil
 }
 
-// ... SendAudio bleibt gleich ...
+func (p *Provider) readOutput(r io.Reader) {
+	scanner := bufio.NewScanner(r)
+
+	// Liest Zeile für Zeile (JSON) von Python
+	for scanner.Scan() {
+		line := scanner.Bytes()
+
+		var res pythonResult
+		if err := json.Unmarshal(line, &res); err != nil {
+			log.Printf("Azure: Failed to parse JSON from worker: %v", err)
+			continue
+		}
+
+		// Senden an Frontend
+		select {
+		case p.resChan <- transcription.TranscriptResult{
+			Text:      res.Text,
+			IsPartial: res.IsPartial,
+			Speaker:   res.Speaker,
+		}:
+		default:
+			// Drop frame if channel full
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Azure: Error reading from worker: %v", err)
+		// Optional: Error in errChan senden
+	}
+
+	log.Println("Azure: Output reader stopped")
+}
+
 func (p *Provider) SendAudio(data []byte) error {
 	p.mu.Lock()
-	if p.isClosed || p.pushStream == nil {
-		p.mu.Unlock()
-		return errors.New("stream closed or not initialized")
-	}
-	p.mu.Unlock()
+	defer p.mu.Unlock()
 
-	// Write blockiert nicht lange, daher okay ausserhalb des Locks
-	return p.pushStream.Write(data)
+	if p.isClosed || p.stdin == nil {
+		return errors.New("azure worker not active")
+	}
+
+	// Audio Bytes direkt an Python Stdin schreiben
+	_, err := p.stdin.Write(data)
+	return err
 }
 
 func (p *Provider) Close() error {
 	p.mu.Lock()
-	// 1. Markieren als geschlossen, damit keine Callbacks mehr senden
+	defer p.mu.Unlock()
+
+	if p.isClosed {
+		return nil
+	}
 	p.isClosed = true
-	p.mu.Unlock()
 
-	// 2. Azure stoppen
-	if p.recognizer != nil {
-		// Wir ignorieren Fehler beim Stoppen, da wir eh runterfahren
-		_ = p.recognizer.StopContinuousRecognitionAsync()
+	if p.stdin != nil {
+		p.stdin.Close()
 	}
 
-	// 3. Stream schliessen
-	if p.pushStream != nil {
-		p.pushStream.Close()
+	if p.cmd != nil {
+		p.cmd.Wait()
 	}
 
-	// WICHTIG: Wir schliessen p.resChan und p.errChan NICHT manuell.
-	// Da der "Reader" (dein Websocket Loop) durch den Verbindungsabbruch
-	// sowieso beendet wurde, müssen wir die Channels nicht schliessen,
-	// um den Reader zu stoppen. Das verhindert den Panic zuverlässig.
-	// Der Garbage Collector räumt die Channels später auf.
-
-	log.Println("Azure: Provider closed gracefully")
+	log.Println("Azure: Python worker closed")
 	return nil
 }
 

@@ -24,6 +24,7 @@ interface ActiveSessionViewProps {
     isRecording: boolean;
     segments: TranscriptSegment[];
     partialText: string;
+    partialSpeaker: string | null;
     error: string | null;
     meta: { name: string; color: string };
     toggleRecording: (val: boolean) => void;
@@ -36,6 +37,7 @@ export function ActiveSessionView({
                                       isRecording,
                                       segments,
                                       partialText,
+                                      partialSpeaker,
                                       error,
                                       meta,
                                       toggleRecording,
@@ -148,6 +150,7 @@ export function ActiveSessionView({
             <TranscriptViewer
                 segments={segments}
                 partialText={partialText}
+                partialSpeaker={partialSpeaker}
                 fontSize={fontSize}
                 accentColor={meta.color}
                 isRecording={isRecording}

@@ -6,7 +6,7 @@ import {getSpeakerColor} from "@/features/transcription/utils/speakerColors";
 interface TranscriptViewerProps {
     segments: TranscriptSegment[];
     partialText: string;
-    partialSpeaker?: string | null; // Neu hinzugefügt
+    partialSpeaker?: string | null;
     fontSize: number;
     accentColor: string;
     isRecording: boolean;

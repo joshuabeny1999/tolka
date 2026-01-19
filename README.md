@@ -1,6 +1,7 @@
 # Tolka - Bridging the Communication Gap
 
 ![Go](https://img.shields.io/badge/Go-1.25-00ADD8?style=flat&logo=go)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)
 ![Azure Speech](https://img.shields.io/badge/Azure-Speech-0078D4?style=flat&logo=microsoftazure)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
@@ -21,15 +22,19 @@ The study compares two setups for live captioning in mixed-hearing groups:
 
 ## 🛠 Tech Stack
 
-The architecture follows the "Majestic Monolith" pattern to ensure easy deployment and low latency.
+The architecture follows a hybrid approach to combine Go's performance with Python's rich AI ecosystem.
 
 * **Backend:** Go (Golang)
-    * **Speech Engine:** **Microsoft Azure Speech Services** (optimized for Swiss German/`de-CH` and low latency via Switzerland North region).
-    * Handles WebSocket connections for real-time audio/text streaming.
-    * Serves the frontend static assets (embedded binary).
+    * Orchestrates WebSocket connections and serves the application.
+    * Manages authentication and static assets.
+* **AI Worker:** Python
+    * Runs as a sidecar process managed by Go.
+    * Uses **Microsoft Azure Speech SDK** for Python to enable **Speaker Diarization** (not supported in Go SDK).
+    * Streams audio via standard I/O pipes for minimal latency (<1ms overhead).
 * **Frontend:** React + TypeScript (Vite)
     * Responsive mobile-first UI for displaying live subtitles.
 * **Deployment:** Docker (Multi-stage build)
+    * Single container including Go binary and Python runtime.
 
 ## 🚀 Getting Started
 
@@ -37,90 +42,74 @@ The architecture follows the "Majestic Monolith" pattern to ensure easy deployme
 * Docker & Docker Compose
 * Go 1.25+ (for local dev)
 * Node.js 20+ (for local dev)
-* **Microsoft Cognitive Services Speech SDK** (Required for local Go development)
+* Python 3.11+ (for local dev)
 
 ### 0. Configuration (Required)
-Before running the app (via Docker or Local), you need to set up the environment variables.
+Before running the app, you need to set up the environment variables.
 
 1. Copy the example file:
    ```bash
    cp .env.example .env
-2. Open .env and configure the Azure Speech Service:
-    ```
+   ```
+
+2. Open `.env` and configure the Azure Speech Service:
+```env
 AZURE_SPEECH_KEY=your_azure_key
-AZURE_SPEECH_REGION=switzerlandnorth    ```
+AZURE_SPEECH_REGION=switzerlandnorth
+
+```
 
 ### Option A: Run with Docker (Recommended for Preview/Production)
-This builds the full container just like in production.
+
+This builds the full container just like in production (Go + Python environment).
 
 ```bash
 # Build and run
 docker compose up --build
+
 ```
 
-The app is now accessible at [http://localhost:8080](https://www.google.com/search?q=http://localhost:8080).
-
-Hier ist der aktualisierte Abschnitt für deine **README.md**.
-
-Er ist jetzt viel professioneller und einfacher, da wir das `Makefile` und `Air` integriert haben.
-
+The app is accessible at [http://localhost:8080](https://www.google.com/search?q=http://localhost:8080).
 
 ### Option B: Local Development (Hot Reload)
+For the best developer experience, we use a `Makefile` that automates the project setup. However, you must ensure the core runtime tools are installed on your machine first.
 
-For the best developer experience, we use **Air** (Go hot reload) and **Vite** (Frontend hot reload) running concurrently.
+#### 1. System Requirements (Prerequisites)
 
+Please ensure the following tools are installed and available in your terminal's `PATH`:
 
-#### 1. One-time Setup
-Install the necessary tools and dependencies:
+* **[Go 1.25+](https://go.dev/dl/)**: Required to run the backend and tools.
+* **[Node.js 20+ & npm](https://nodejs.org/en/download/)**: Required for the React frontend.
+* **[Python 3.11+](https://www.python.org/downloads/)**: Required for the Azure AI worker (Diarization).
+* **Make**: Typically pre-installed on macOS/Linux (via Xcode/build-essential).
 
-```bash
-# Install Air (Hot reload for Go)
-go install github.com/air-verse/air@latest
-
-# Install Frontend dependencies
-cd frontend
-npm install
-
-```
-
-To run the backend locally on macOS/Linux, you must have the Azure Speech SDK C-libraries linked.
-
-#### macOS Setup (Apple Silicon):
-
-Download the Speech SDK for macOS.
-
-Extract the MicrosoftCognitiveServicesSpeech.xcframework.
-
-Export the CGO flags in your shell (e.g., .zshrc):
-
-```bash
-export AZURE_SPEECH_SDK="/path/to/xcframework/macos-arm64_x86_64"
-export CGO_CFLAGS="-F$AZURE_SPEECH_SDK -I$AZURE_SPEECH_SDK/MicrosoftCognitiveServicesSpeech.framework/Headers"
-export CGO_LDFLAGS="-F$AZURE_SPEECH_SDK -framework MicrosoftCognitiveServicesSpeech -Wl,-rpath,$AZURE_SPEECH_SDK"
-export DYLD_FRAMEWORK_PATH="$AZURE_SPEECH_SDK:$DYLD_FRAMEWORK_PATH"
-```
 #### 2. Start Development Server
 
-Simply run the make command from the project root. This starts both the Go backend and React frontend in a single terminal.
-
+Once the tools above are installed, you can simply run the make command. It will automatically:
+1.  Create the Python `venv` and install Azure SDK requirements.
+2.  Install `air` (Go hot reload) if missing.
+3.  Install Frontend dependencies (`npm install`).
+4.  Start Backend and Frontend concurrently.
 ```bash
 make dev
-
 ```
 
-* **Frontend:** Open [http://localhost:5173](http://localhost:5173) (Proxies API requests to backend automatically)
+* **Frontend:** Open [http://localhost:5173](https://www.google.com/search?q=http://localhost:5173) (Proxies API requests to backend automatically)
 * **Backend:** Runs on port `8080` (rebuilds automatically on save)
 
 ## 🏗 Project Structure
 
 ```text
 tolka/
-├── cmd/server/         # Main entry point for the Go application
-├── internal/           # Private application logic (Audio processing, WebSocket)
-├── frontend/           # React application
-├── Dockerfile          # Multi-stage Docker build definition
-└── docker-compose.yml  # Local development setup
-└── env.example         # sample environment variables
+├── cmd/server/
+│   ├── main.go             # Main entry point for Go
+│   └── azure_worker.py     # Python script for Azure Diarization
+├── internal/               # Application logic (Audio processing, WebSocket)
+├── frontend/               # React application
+├── requirements.txt        # Python dependencies
+├── Makefile                # Dev automation
+├── Dockerfile              # Multi-stage Docker build
+└── docker-compose.yml      # Local development setup
 
 ```
 
@@ -128,16 +117,15 @@ tolka/
 
 To protect the application from unauthorized access (and unexpected API costs), Tolka supports optional **HTTP Basic Auth**.
 
-* **Development:** If `AUTH_USERNAME` or `AUTH_PASSWORD` are empty or not set, authentication is **disabled**.
-* **Production:** Set the variables to enforce login for the entire application (Frontend + WebSocket).
-
-Add these to your `.env` file or Docker environment:
+* **Development:** If `AUTH_USERNAME` or `AUTH_PASSWORD` are empty, authentication is **disabled**.
+* **Production:** Set the variables to enforce login for the entire application.
 
 ```env
 # Basic Auth Credentials
 AUTH_USERNAME=admin
-AUTH_PASSWORD=change_me_to_something_secure
-WS_TOKEN=change_me_to_something_secure
+AUTH_PASSWORD=secure_password
+WS_TOKEN=secure_token
+
 ```
 
 ## 📄 License

@@ -3,7 +3,6 @@ module github.com/joshuabeny1999/tolka
 go 1.25.5
 
 require (
-	github.com/Microsoft/cognitive-services-speech-sdk-go v1.43.0
 	github.com/deepgram/deepgram-go-sdk/v3 v3.5.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1

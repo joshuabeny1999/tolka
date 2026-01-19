@@ -12,6 +12,13 @@ export const useBaseAudioStream = (wsUrl: string) => {
     const isRecordingRef = useRef(false);
     const lastCommittedSegmentRef = useRef<string | null>(null); // Für Azure De-bouncing
 
+    useEffect(() => {
+        setSegments([]);
+        setPartialText('');
+        setPartialSpeaker(null);
+        setError(null);
+    }, [wsUrl]);
+
     // --- SHARED: Message Handling ---
     const handleMessage = useCallback((event: MessageEvent) => {
         try {
