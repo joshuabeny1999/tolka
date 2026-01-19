@@ -18,7 +18,6 @@ const getWsUrl = (roomId: string | null, role: string | null, provider: Provider
 export function useTranscription(roomId: string | null, role: "host" | "viewer" | null, initialProvider: ProviderType) {
     const [provider, setProvider] = useState<ProviderType>(initialProvider);
 
-    // FIX 2: State synchronisieren, wenn sich der Prop 'initialProvider' ändert
     useEffect(() => {
         setProvider(initialProvider);
     }, [initialProvider]);
@@ -76,6 +75,7 @@ export function useTranscription(roomId: string | null, role: "host" | "viewer" 
         isRecording: activeStream.stream.isRecording,
         segments: activeStream.stream.segments,
         partialText: activeStream.stream.partialText,
+        partialSpeaker: activeStream.stream.partialSpeaker,
         error: activeStream.stream.error,
         toggleRecording,
         meta: activeStream.meta

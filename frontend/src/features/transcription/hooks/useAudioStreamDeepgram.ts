@@ -1,193 +1,84 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import type { TranscriptSegment, UseAudioStreamReturn } from '../types';
+import { useRef, useCallback } from 'react';
+import type { UseAudioStreamReturn } from '../types';
+import { useBaseAudioStream } from './useBaseAudioStream';
 
 export const useAudioStreamDeepgram = (wsUrl: string): UseAudioStreamReturn => {
-    const [isRecording, setIsRecording] = useState(false);
-    const [segments, setSegments] = useState<TranscriptSegment[]>([]);
-    const [partialText, setPartialText] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    const {
+        isRecording, segments, partialText, partialSpeaker, error,
+        socketRef, isRecordingRef,
+        setIsRecording, setError, handleMessage, baseCleanup, resetState, connectViewer
+    } = useBaseAudioStream(wsUrl);
 
-    const socketRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const streamRef = useRef<MediaStream | null>(null); // Ref to track stream for cleanup
-    const isRecordingRef = useRef(false);
+    const streamRef = useRef<MediaStream | null>(null);
 
-    // --- SHARED LOGIC: Message Handling ---
-    const handleMessage = useCallback((event: MessageEvent) => {
-        try {
-            const data = JSON.parse(event.data);
-
-            if (!data.text) return;
-
-            if (data.is_partial) {
-                setPartialText(data.text);
-            } else {
-                // Final Result Handling
-                const newSegment: TranscriptSegment = {
-                    id: crypto.randomUUID(),
-                    text: data.text.trim(),
-                    timestamp: Date.now(),
-                    isFinal: true
-                };
-
-                setSegments(prev => [...prev, newSegment]);
-                setPartialText("");
-            }
-        } catch (err) {
-            console.error('JSON Error:', err);
-        }
-    }, []);
-
-    // --- SHARED LOGIC: Cleanup ---
-    const cleanup = useCallback(() => {
-        isRecordingRef.current = false;
-        setIsRecording(false);
-
-        // Stop MediaRecorder
+    const stopRecording = useCallback(() => {
+        // 1. Audio stoppen
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
         }
         mediaRecorderRef.current = null;
 
-        // Stop Tracks (Microphone)
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((track) => track.stop());
             streamRef.current = null;
         }
 
-        // Close Socket
-        if (socketRef.current) {
-            if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
-                socketRef.current.close();
-            }
-            socketRef.current = null;
-        }
-    }, []);
+        // 2. Basis Cleanup aufrufen
+        baseCleanup();
+        resetState();
+    }, [baseCleanup, resetState]);
 
-    const stopRecording = useCallback(() => {
-        cleanup();
-        setPartialText('');
-    }, [cleanup]);
-
-    // --- VIEWER CONNECTION (Listen Only) ---
-    const connectViewer = useCallback(() => {
-        if (!wsUrl) return;
-        if (socketRef.current?.readyState === WebSocket.OPEN) return;
-
-        cleanup();
-
-        try {
-            const socket = new WebSocket(wsUrl);
-            socketRef.current = socket;
-
-            socket.onopen = () => {
-                console.log('Viewer Connected (Listen Only)');
-                // WICHTIG: UI Status aktualisieren
-                setIsRecording(true);
-                isRecordingRef.current = true;
-            };
-
-            socket.onmessage = handleMessage;
-
-            socket.onerror = () => {
-                setError('Viewer Connection Error');
-                // Bei Fehler auch Status zurücksetzen
-                setIsRecording(false);
-                isRecordingRef.current = false;
-            };
-
-            socket.onclose = () => {
-                console.log("Viewer Disconnected");
-                setIsRecording(false);
-                isRecordingRef.current = false;
-            };
-
-        } catch (err) {
-            setError('Viewer Connection Failed');
-            setIsRecording(false);
-        }
-    }, [wsUrl, cleanup, handleMessage]);
-
-    // --- HOST CONNECTION (Recording) ---
     const startRecording = useCallback(async () => {
-        setError(null);
+        resetState();
 
         if (!wsUrl) {
             setError("No Session URL");
             return;
         }
 
-        cleanup();
+        stopRecording(); // Clean start
         isRecordingRef.current = true;
 
         try {
-            // 1. Get Mic Access
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                }
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
             });
             streamRef.current = stream;
 
-            // 2. Open Socket
             const socket = new WebSocket(wsUrl);
             socketRef.current = socket;
 
             socket.onopen = () => {
                 console.log('WS: Connected (Deepgram Host)');
-                // Only start sending audio if user hasn't stopped meanwhile
-                if (isRecordingRef.current && mediaRecorderRef.current?.state === 'inactive') {
-                    mediaRecorderRef.current.start(250); // Send slices every 250ms
+                if (isRecordingRef.current) {
+                    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                    mediaRecorderRef.current = mediaRecorder;
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+                            socket.send(event.data);
+                        }
+                    };
+
+                    mediaRecorder.start(250);
                     setIsRecording(true);
                 } else {
-                    socket.close(); // Safety close
+                    socket.close();
                 }
             };
 
             socket.onmessage = handleMessage;
-
-            socket.onerror = () => {
-                if (isRecordingRef.current) setError('WebSocket connection failed');
-            };
-
-            socket.onclose = () => {
-                if (isRecordingRef.current) {
-                    stopRecording();
-                    setError('Connection closed by server');
-                }
-            };
-
-            // 3. Setup MediaRecorder
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            mediaRecorderRef.current = mediaRecorder;
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-                    socket.send(event.data);
-                }
-            };
+            socket.onerror = () => { if (isRecordingRef.current) setError('WebSocket connection failed'); };
+            socket.onclose = () => { if (isRecordingRef.current) { stopRecording(); setError('Connection closed by server'); } };
 
         } catch (err) {
             console.error(err);
             setError('Could not access microphone.');
             isRecordingRef.current = false;
-            cleanup();
+            stopRecording();
         }
-    }, [wsUrl, cleanup, handleMessage, stopRecording]);
+    }, [wsUrl, stopRecording, handleMessage, setError, setIsRecording, isRecordingRef, socketRef, resetState]);
 
-    useEffect(() => {
-        return () => cleanup();
-    }, [cleanup]);
-
-    return {
-        isRecording,
-        segments,
-        partialText,
-        startRecording,
-        stopRecording,
-        connectViewer,
-        error,
-    };
+    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, error };
 };
