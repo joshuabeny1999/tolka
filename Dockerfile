@@ -1,5 +1,5 @@
 # --- Stage 1: Build React Frontend ---
-FROM --platform=linux/amd64 node:20-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- Stage 2: Build Go Backend ---
-FROM --platform=linux/amd64 golang:1.25-bookworm AS backend-builder
+FROM golang:1.25-bookworm AS backend-builder
 WORKDIR /src
 
 # CGO deaktivieren! Da wir keine C-Libraries mehr linken,
@@ -27,7 +27,7 @@ RUN go build -ldflags="-s -w" -o tolka-app ./cmd/server/main.go
 
 # --- Stage 3: Final Runtime Image (Python Base) ---
 # Wir nehmen ein Python-Image als Basis, da Python die schwerste Abhängigkeit ist.
-FROM --platform=linux/amd64 python:3.11-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 LABEL application="tolka-app"
 WORKDIR /root/

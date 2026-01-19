@@ -14,6 +14,7 @@ export const useBaseAudioStream = (wsUrl: string) => {
 
     useEffect(() => {
         setSegments([]);
+        setIsRecording(false);
         setPartialText('');
         setPartialSpeaker(null);
         setError(null);
