@@ -1,5 +1,6 @@
-export type ProviderType = 'azure' | 'deepgram' | 'mock';
+import type {RefObject} from "react";
 
+export type ProviderType = 'azure' | 'deepgram' | 'mock';
 
 export interface TranscriptSegment {
     id: string;
@@ -7,6 +8,17 @@ export interface TranscriptSegment {
     speaker: string;
     timestamp: number;
     isFinal: boolean;
+}
+
+export interface SpeakerData {
+    name: string;
+    position: number; // 0-360 Grad. 180 = Below (Host Position)
+}
+
+// NEU: Datenstruktur für Speaker im Backend/Frontend Sync
+export interface SpeakerData {
+    name: string;
+    position: number; // 0-360 Grad. 180 = Unten (Host Position)
 }
 
 export interface UseAudioStreamReturn {
@@ -17,5 +29,6 @@ export interface UseAudioStreamReturn {
     startRecording: () => Promise<void>;
     stopRecording: () => void;
     connectViewer: () => void;
+    socketRef: RefObject<WebSocket | null>;
     error: string | null;
 }

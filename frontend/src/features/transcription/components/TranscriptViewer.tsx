@@ -1,17 +1,20 @@
 import { useEffect, useRef, type UIEventHandler } from "react";
 import { cn } from "@/lib/utils";
 import type { TranscriptSegment } from "@/features/transcription/types";
-import {getSpeakerColor} from "@/features/transcription/utils/speakerColors";
+import { getSpeakerColor } from "@/features/transcription/utils/speakerColors";
+import { ArrowUp } from "lucide-react";
 
 interface TranscriptViewerProps {
     segments: TranscriptSegment[];
     partialText: string;
     partialSpeaker?: string | null;
     fontSize: number;
-    accentColor: string;
+    accentColor: string; // Wird jetzt als Fallback genutzt
     isRecording: boolean;
     autoScroll: boolean;
     setAutoScroll: (enabled: boolean) => void;
+    getName: (id: string) => string;
+    getDirection: (id: string) => number | null;
 }
 
 export function TranscriptViewer({
@@ -22,84 +25,95 @@ export function TranscriptViewer({
                                      accentColor,
                                      isRecording,
                                      autoScroll,
-                                     setAutoScroll
+                                     setAutoScroll,
+                                     getName,
+                                     getDirection
                                  }: TranscriptViewerProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 1. Automatisches Scrollen
     useEffect(() => {
         if (autoScroll && bottomRef.current) {
             bottomRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [segments, partialText, autoScroll]);
 
-    // 2. Scroll-Erkennung
     const handleScroll: UIEventHandler<HTMLDivElement> = (e) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
         const isAtBottom = scrollHeight - scrollTop - clientHeight <= 50;
-
         if (!isAtBottom && autoScroll) setAutoScroll(false);
         if (isAtBottom && !autoScroll) setAutoScroll(true);
+    };
+
+    const renderSegment = (text: string, speakerID: string | null, isPartial = false) => {
+        if (!text) return null;
+
+        const speakerName = speakerID ? getName(speakerID) : "Unknown";
+        const direction = speakerID ? getDirection(speakerID) : null;
+
+        const hasSpecificSpeaker = speakerID && speakerID !== "Unknown";
+        const colorClass = hasSpecificSpeaker ? getSpeakerColor(speakerID) : accentColor;
+
+        // Pfeil-Rotation
+        const rotationStyle = direction !== null ? { transform: `rotate(${direction}deg)` } : {};
+
+        return (
+            // Wrapper ist jetzt flex-col für "Header oben, Text unten"
+            <div className={cn("flex flex-col mb-4", isPartial && "opacity-80")} style={{ fontSize: `${fontSize}px` }}>
+
+                {/* HEADER: Pfeil & Name (Zentriert & Faded) */}
+                {(direction !== null || hasSpecificSpeaker) && (
+                    <div className="flex items-center gap-2 mb-1 opacity-60 select-none">
+
+                        {/* Pfeil */}
+                        {direction !== null && (
+                            <ArrowUp
+                                className={cn("w-[0.8em] h-[0.8em] transition-transform duration-500", colorClass)}
+                                style={rotationStyle}
+                                strokeWidth={3}
+                            />
+                        )}
+
+                        {/* Name */}
+                        {hasSpecificSpeaker && (
+                            <span className={cn("text-[0.6em] font-bold uppercase tracking-wider leading-none", colorClass)}>
+                           {speakerName}
+                       </span>
+                        )}
+                    </div>
+                )}
+
+                {/* TEXT BLOCK */}
+                <div className={cn("font-medium leading-relaxed", colorClass)}>
+                    {text}
+
+                    {/* Cursor Pulse (Partial) */}
+                    {isPartial && isRecording && (
+                        <span className="inline-block w-2 h-[0.8em] ml-1 align-middle animate-pulse opacity-50 bg-current"/>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     return (
         <div
             ref={containerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-6 scroll-smooth bg-background"
+            className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-background"
         >
-            <div className="max-w-3xl mx-auto space-y-4"> {/* Etwas mehr Abstand für bessere Lesbarkeit */}
+            <div className="max-w-3xl mx-auto space-y-6">
 
-                {segments.map((seg) => {
-                    const colorClass = getSpeakerColor(seg.speaker);
-                    const showSpeakerName = seg.speaker && seg.speaker !== "Unknown";
+                {segments.map((seg) => (
+                    <div key={seg.id} className="animate-in fade-in slide-in-from-bottom-1">
+                        {renderSegment(seg.text, seg.speaker)}
+                    </div>
+                ))}
 
-                    return (
-                        <div
-                            key={seg.id}
-                            className="leading-relaxed transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 flex flex-col"
-                            style={{ fontSize: `${fontSize}px` }}
-                        >
-                            {/* Sprecher-Name (klein darüber, falls vorhanden) */}
-                            {showSpeakerName && (
-                                <span className={cn("text-[0.6em] font-bold uppercase tracking-wider opacity-80 mb-0.5", colorClass)}>
-                                    {seg.speaker}
-                                </span>
-                            )}
-
-                            {/* Der Text selbst in der Sprecher-Farbe */}
-                            <span className={cn("font-medium", colorClass)}>
-                                {seg.text}
-                            </span>
-                        </div>
-                    );
-                })}
-
-                {/* 2. Aktiver "Live" Absatz (Grau/Neutral halten für Stabilität) */}
                 {(partialText || isRecording) && (
-                    <div
-                        className="leading-relaxed min-h-[1.5em] flex flex-col"
-                        style={{ fontSize: `${fontSize}px` }}
-                    >
-                        {partialSpeaker && partialSpeaker !== "Unknown" && (
-                            <span className={cn(
-                                "text-[0.6em] font-bold uppercase tracking-wider opacity-50 mb-0.5",
-                                getSpeakerColor(partialSpeaker)
-                            )}>
-                                {partialSpeaker}...
-                            </span>
-                        )}
 
-                        <div className="text-muted-foreground italic">
-                            {partialText}
-                            {isRecording && (
-                                <span className={cn(
-                                    "inline-block w-2 h-[1em] ml-1 align-middle animate-pulse opacity-50 bg-current",
-                                    accentColor
-                                )}/>
-                            )}
-                        </div>
+                    <div>
+                        {renderSegment(partialText, partialSpeaker ?? null, true)}
                     </div>
                 )}
 

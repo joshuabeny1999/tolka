@@ -18,6 +18,7 @@ export function TranscriptionLive() {
         segments,
         partialText,
         partialSpeaker,
+        socketRef,
         error,
         meta
     } = useTranscription(roomId, role, sessionProvider);
@@ -48,6 +49,7 @@ export function TranscriptionLive() {
             error={error}
             meta={meta}
             onLeave={closeSession}
+            socketRef={socketRef}
         />
     );
 }

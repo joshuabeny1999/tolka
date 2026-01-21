@@ -59,11 +59,14 @@ func (c *Client) readPump() {
 		}
 
 		// 2. Steuerbefehle (Text/JSON) - z.B. Host benennt Speaker um
-		if msgType == websocket.TextMessage && c.isHost {
+		if msgType == websocket.TextMessage {
 			var cmd ClientCommand
 			if err := json.Unmarshal(payload, &cmd); err == nil {
-				if cmd.Type == "update_speaker" {
+				if cmd.Type == "update_speaker" && c.isHost {
 					c.room.UpdateSpeaker(cmd.SpeakerID, cmd.Name, cmd.Position)
+				}
+				if cmd.Type == "get_speakers" {
+					c.room.SendCurrentSpeakers(c)
 				}
 			}
 		}

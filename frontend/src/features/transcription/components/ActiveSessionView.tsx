@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ProviderType, TranscriptSegment } from "../types";
 import {Label} from "@radix-ui/react-dropdown-menu";
+import { useSpeakerRegistry } from "@/features/transcription/hooks/useSpeakerRegistry";
+import { CalibrationDialog } from "./CalibrationDialog";
 
 interface ActiveSessionViewProps {
     roomId: string;
@@ -29,6 +31,7 @@ interface ActiveSessionViewProps {
     meta: { name: string; color: string };
     toggleRecording: (val: boolean) => void;
     onLeave: () => void;
+    socketRef: React.RefObject<WebSocket | null>;
 }
 
 export function ActiveSessionView({
@@ -41,7 +44,8 @@ export function ActiveSessionView({
                                       error,
                                       meta,
                                       toggleRecording,
-                                      onLeave
+                                      onLeave,
+                                      socketRef
                                   }: ActiveSessionViewProps) {
     const [fontSize, setFontSize] = useState(24);
     const [autoScroll, setAutoScroll] = useState(true);
@@ -60,6 +64,14 @@ export function ActiveSessionView({
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const {
+        registry,
+        updateSpeaker,
+        calibrateView,
+        getName,
+        getDirection
+    } = useSpeakerRegistry(socketRef,isRecording);
 
     return (
         <div className="flex flex-col h-full relative bg-background">
@@ -86,6 +98,15 @@ export function ActiveSessionView({
                             </>
                         )}
                     </Button>
+
+                    <div className="flex items-center gap-2">
+                        <CalibrationDialog
+                            role={role || 'viewer'}
+                            segments={segments}
+                            registry={registry}
+                            updateSpeaker={updateSpeaker}
+                            calibrateView={calibrateView}
+                        />
 
                     {/* Invite Dialog - Verbessertes UI */}
                     {role === 'host' && (
@@ -134,6 +155,7 @@ export function ActiveSessionView({
                             </DialogContent>
                         </Dialog>
                     )}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -156,6 +178,8 @@ export function ActiveSessionView({
                 isRecording={isRecording}
                 autoScroll={autoScroll}
                 setAutoScroll={setAutoScroll}
+                getName={getName}
+                getDirection={getDirection}
             />
 
             {/* Controls */}

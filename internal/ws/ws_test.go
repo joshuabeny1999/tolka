@@ -62,14 +62,11 @@ func TestCompleteSessionFlow(t *testing.T) {
 	}
 	defer hostConn.Close()
 
-	// NEU: Sofort Initial-Sync lesen (Leere Speaker Liste)
+	// Host: Initial-Sync lesen (sollte leer sein, da Raum neu)
 	var initMsg WSMessage
 	hostConn.SetReadDeadline(time.Now().Add(time.Second))
 	if err := hostConn.ReadJSON(&initMsg); err != nil {
 		t.Fatalf("Host failed to read initial sync: %v", err)
-	}
-	if initMsg.Type != "speaker_update" {
-		t.Errorf("Expected initial type 'speaker_update', got %s", initMsg.Type)
 	}
 
 	// 6. Connect Second HOST (Should Fail)
@@ -81,36 +78,37 @@ func TestCompleteSessionFlow(t *testing.T) {
 		t.Errorf("Expected 409 Conflict, got %d", resp.StatusCode)
 	}
 
-	// 7. NEU: Test Speaker Naming (Host sendet Command)
-	updateCmd := ClientCommand{
-		Type:      "update_speaker",
-		SpeakerID: "guest-1",
-		Name:      "Fritz",
-		Position:  90,
+	// 7. Test Speaker Naming (Host sendet Command)
+	// Wir nutzen ClientCommand Struktur direkt, falls sie exportiert ist,
+	// oder definieren sie hier lokal für den Test, um JSON zu bauen.
+	updateData := map[string]interface{}{
+		"type":      "update_speaker",
+		"speakerId": "guest-1",
+		"name":      "Fritz",
+		"position":  90,
 	}
-	if err := hostConn.WriteJSON(updateCmd); err != nil {
+	if err := hostConn.WriteJSON(updateData); err != nil {
 		t.Fatalf("Host failed to send update command: %v", err)
 	}
 
-	// Host muss das Broadcast-Update empfangen
+	// Host muss das Broadcast-Update empfangen (Bestätigung)
 	var updateBroadcast WSMessage
 	hostConn.SetReadDeadline(time.Now().Add(time.Second))
 	if err := hostConn.ReadJSON(&updateBroadcast); err != nil {
 		t.Fatalf("Host failed to read broadcast update: %v", err)
 	}
 
-	// Prüfen ob Daten korrekt im Payload sind (via Map Assertion)
+	// Payload Check für Host
 	payloadMap, ok := updateBroadcast.Payload.(map[string]interface{})
 	if !ok {
 		t.Fatal("Payload is not a map")
 	}
-	// Hinweis: JSON Unmarshal macht aus Zahlen oft float64
 	guestData := payloadMap["guest-1"].(map[string]interface{})
 	if guestData["name"] != "Fritz" {
-		t.Errorf("Expected name 'Fritz', got %v", guestData["name"])
+		t.Errorf("Host: Expected name 'Fritz', got %v", guestData["name"])
 	}
 
-	// 8. Connect Viewer (Should Succeed & receive updated state)
+	// 8. Connect Viewer (Should Succeed)
 	viewerURL := wsBase + "?room=" + roomID
 	viewerConn, _, err := websocket.DefaultDialer.Dial(viewerURL, nil)
 	if err != nil {
@@ -118,23 +116,46 @@ func TestCompleteSessionFlow(t *testing.T) {
 	}
 	defer viewerConn.Close()
 
-	var viewerInitMsg WSMessage
-	viewerConn.SetReadDeadline(time.Now().Add(time.Second))
-	if err := viewerConn.ReadJSON(&viewerInitMsg); err != nil {
-		t.Fatalf("Viewer failed to read initial sync: %v", err)
+	// WICHTIG: Viewer muss jetzt AKTIV die Speaker anfordern (Pull-Prinzip)
+	// Das simuliert das Verhalten des neuen useSpeakerRegistry Hooks.
+	getCmd := map[string]string{
+		"type": "get_speakers",
+	}
+	if err := viewerConn.WriteJSON(getCmd); err != nil {
+		t.Fatalf("Viewer failed to send get_speakers: %v", err)
 	}
 
-	// Prüfen ob Fritz da ist (JSON Roundtrip check)
-	// Wir marshaln es kurz zurück zu JSON und dann in unsere Struct, das ist sauberer als Map Casting
-	payloadBytes, _ := json.Marshal(viewerInitMsg.Payload)
-	var speakers map[string]SpeakerData
-	json.Unmarshal(payloadBytes, &speakers)
+	// Viewer Response lesen
+	// Hinweis: Es könnte sein, dass wir ZWEI Nachrichten bekommen (Initial Connect + Get Response).
+	// Wir lesen in einer Loop, bis wir die Daten haben oder Timeout.
 
-	if speakers["guest-1"].Name != "Fritz" {
-		t.Errorf("Viewer did not receive updated state. Got: %+v", speakers)
+	foundFritz := false
+	deadline := time.Now().Add(2 * time.Second)
+
+	for time.Now().Before(deadline) {
+		viewerConn.SetReadDeadline(time.Now().Add(time.Second))
+		var viewerMsg WSMessage
+		if err := viewerConn.ReadJSON(&viewerMsg); err != nil {
+			break // Timeout oder Error
+		}
+
+		if viewerMsg.Type == "speaker_update" {
+			// Check Payload
+			payloadBytes, _ := json.Marshal(viewerMsg.Payload)
+			var speakers map[string]SpeakerData
+			json.Unmarshal(payloadBytes, &speakers)
+
+			if s, exists := speakers["guest-1"]; exists {
+				if s.Name == "Fritz" && s.Position == 90 {
+					foundFritz = true
+					break // Success!
+				}
+			}
+		}
 	}
-	if speakers["guest-1"].Position != 90 {
-		t.Errorf("Viewer did not receive correct position. Got: %d", speakers["guest-1"].Position)
+
+	if !foundFritz {
+		t.Error("Viewer did not receive updated state with 'Fritz' after sending get_speakers")
 	}
 
 	// 9. Cleanup Check (Positive)

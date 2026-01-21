@@ -78,6 +78,7 @@ export function useTranscription(roomId: string | null, role: "host" | "viewer" 
         partialSpeaker: activeStream.stream.partialSpeaker,
         error: activeStream.stream.error,
         toggleRecording,
+        socketRef: activeStream.stream.socketRef,
         meta: activeStream.meta
     };
 }

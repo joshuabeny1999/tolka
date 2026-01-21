@@ -170,6 +170,8 @@ func (r *Room) Run(cleanupFunc func()) {
 func (r *Room) UpdateSpeaker(id string, name string, position int) {
 	r.mu.Lock()
 
+	log.Printf("Updating speaker %s: %s (%d)", id, name, position)
+
 	// Get existing data or default
 	data, exists := r.speakers[id]
 	if !exists {
@@ -192,6 +194,33 @@ func (r *Room) UpdateSpeaker(id string, name string, position int) {
 		Payload: map[string]SpeakerData{id: data},
 	}
 	r.broadcastToClients(msg)
+}
+
+func (r *Room) SendCurrentSpeakers(client *Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Kopie erstellen, um Race Conditions zu vermeiden
+	currentSpeakers := make(map[string]SpeakerData)
+	for k, v := range r.speakers {
+		currentSpeakers[k] = v
+	}
+
+	log.Printf("Try sending current speakers to %s: %v", client.conn.RemoteAddr().String(), currentSpeakers)
+
+	msg := WSMessage{
+		Type:    "speaker_update",
+		Payload: currentSpeakers,
+	}
+
+	// Non-blocking send versuch
+	select {
+	case client.send <- msg:
+		log.Printf("Sent. speaker_update to %s")
+	default:
+		log.Printf("Coulnd't send. speaker_update to %s")
+		// Client buffer voll oder weg
+	}
 }
 
 func (r *Room) processAudio() {

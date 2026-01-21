@@ -61,5 +61,5 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
         }
     }, [wsUrl, stopRecording, handleMessage, setError, setIsRecording, isRecordingRef, socketRef, resetState]);
 
-    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, error };
+    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, socketRef, error };
 };
