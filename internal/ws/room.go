@@ -13,9 +13,22 @@ import (
 // or remains open after the last user leaves.
 const idleTimeout = 2 * time.Minute
 
+// SpeakerData stores Name and Position (0-360 Grad)
+type SpeakerData struct {
+	Name     string `json:"name"`
+	Position int    `json:"position"` // 0 = Oben (Standard), 90 = Rechts, etc.
+}
+
+// WSMessage is a Wrapper for all WebSocket Messages
+type WSMessage struct {
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload"`
+}
+
 type Room struct {
 	ID          string
 	clients     map[*Client]bool
+	speakers    map[string]SpeakerData
 	broadcast   chan interface{}
 	register    chan *Client
 	unregister  chan *Client
@@ -37,6 +50,7 @@ func NewRoom(id string, service transcription.Service) *Room {
 	return &Room{
 		ID:          id,
 		clients:     make(map[*Client]bool),
+		speakers:    make(map[string]SpeakerData),
 		broadcast:   make(chan interface{}),
 		register:    make(chan *Client),
 		unregister:  make(chan *Client),
@@ -101,6 +115,19 @@ func (r *Room) Run(cleanupFunc func()) {
 
 			r.clients[client] = true
 
+			r.mu.Lock()
+			currentSpeakers := make(map[string]SpeakerData)
+			for k, v := range r.speakers {
+				currentSpeakers[k] = v
+			}
+			r.mu.Unlock()
+
+			initMsg := WSMessage{
+				Type:    "speaker_update",
+				Payload: currentSpeakers,
+			}
+			client.send <- initMsg
+
 		case client := <-r.unregister:
 			if _, ok := r.clients[client]; ok {
 				delete(r.clients, client)
@@ -119,7 +146,11 @@ func (r *Room) Run(cleanupFunc func()) {
 			if !ok {
 				return
 			}
-			r.broadcastToClients(result)
+			msg := WSMessage{
+				Type:    "transcript",
+				Payload: result,
+			}
+			r.broadcastToClients(msg)
 
 		case _, ok := <-r.service.ErrorChan():
 			if !ok {
@@ -134,6 +165,33 @@ func (r *Room) Run(cleanupFunc func()) {
 			return
 		}
 	}
+}
+
+func (r *Room) UpdateSpeaker(id string, name string, position int) {
+	r.mu.Lock()
+
+	// Get existing data or default
+	data, exists := r.speakers[id]
+	if !exists {
+		data = SpeakerData{Position: 0}
+	}
+
+	// Only update if name is set
+	if name != "" {
+		data.Name = name
+	}
+
+	data.Position = position
+
+	r.speakers[id] = data
+	r.mu.Unlock()
+
+	// Broadcast to ALL clients for sync
+	msg := WSMessage{
+		Type:    "speaker_update",
+		Payload: map[string]SpeakerData{id: data},
+	}
+	r.broadcastToClients(msg)
 }
 
 func (r *Room) processAudio() {

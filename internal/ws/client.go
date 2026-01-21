@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
@@ -12,6 +13,13 @@ const (
 	pongWait   = 60 * time.Second
 	pingPeriod = (pongWait * 9) / 10
 )
+
+type ClientCommand struct {
+	Type      string `json:"type"`
+	SpeakerID string `json:"speakerId"`
+	Name      string `json:"name"`
+	Position  int    `json:"position"`
+}
 
 type Client struct {
 	room   *Room
@@ -42,11 +50,21 @@ func (c *Client) readPump() {
 			break
 		}
 
+		// 1. Audio Daten (Binary) - Nur Host darf Audio senden
 		if c.isHost && msgType == websocket.BinaryMessage {
 			select {
 			case c.room.audioIngest <- payload:
 			default:
-				// buffer full
+			}
+		}
+
+		// 2. Steuerbefehle (Text/JSON) - z.B. Host benennt Speaker um
+		if msgType == websocket.TextMessage && c.isHost {
+			var cmd ClientCommand
+			if err := json.Unmarshal(payload, &cmd); err == nil {
+				if cmd.Type == "update_speaker" {
+					c.room.UpdateSpeaker(cmd.SpeakerID, cmd.Name, cmd.Position)
+				}
 			}
 		}
 	}

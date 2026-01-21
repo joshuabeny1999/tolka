@@ -24,14 +24,15 @@ export const useBaseAudioStream = (wsUrl: string) => {
     const handleMessage = useCallback((event: MessageEvent) => {
         try {
             const data = JSON.parse(event.data);
-            if (!data.text) return;
+            const payload = data.payload || data;
+            if (!payload.text) return;
 
-            const trimmedText = data.text.trim();
+            const trimmedText = payload.text.trim();
             if (!trimmedText) return;
 
-            if (data.is_partial) {
+            if (payload.is_partial) {
                 setPartialText(trimmedText);
-                if (data.speaker) setPartialSpeaker(data.speaker);
+                if (payload.speaker) setPartialSpeaker(payload.speaker);
             } else {
                 // De-bounce check (wichtig für Azure, schadet den anderen nicht)
                 if (lastCommittedSegmentRef.current === trimmedText) return;
@@ -40,7 +41,7 @@ export const useBaseAudioStream = (wsUrl: string) => {
                 const newSegment: TranscriptSegment = {
                     id: crypto.randomUUID(),
                     text: trimmedText,
-                    speaker: data.speaker.trim() || 'Unknown',
+                    speaker: payload.speaker.trim() || 'Unknown',
                     timestamp: Date.now(),
                     isFinal: true
                 };
