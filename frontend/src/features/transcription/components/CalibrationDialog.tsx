@@ -77,8 +77,8 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 bg-background/80 backdrop-blur shadow-sm">
                     <Settings2 className="w-4 h-4" />
-                    <span className="hidden xs:inline">
-                        {role === 'host' ? 'Setup' : 'Position'}
+                    <span className="hidden sm:inline text-xs font-medium">
+                        Kalibrieren
                     </span>
                 </Button>
             </DialogTrigger>
