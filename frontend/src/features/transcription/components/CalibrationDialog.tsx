@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,11 +25,18 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
     // UI State
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    // Temp State für Bearbeitung
+    // Temp State für Bearbeitung (Host)
     const [tempName, setTempName] = useState("");
     const [tempPos, setTempPos] = useState(0);
+    const [nameError, setNameError] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
-    // Sammle alle IDs (aus Transkripten + bereits gespeicherte)
+    // State für Viewer
+    const [viewerAngle, setViewerAngle] = useState(180);
+
+    const circleRef = useRef<HTMLDivElement>(null);
+
+    // Sammle alle IDs
     const allSpeakers = useMemo(() => {
         const fromSegments = segments.map(s => s.speaker).filter(s => s && s !== 'Unknown');
         const fromRegistry = Object.keys(registry);
@@ -38,39 +45,113 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
 
     // Cleanup bei Close
     useEffect(() => {
-        if (!isOpen) setSelectedId(null);
+        if (!isOpen) {
+            setSelectedId(null);
+            setNameError(false);
+        }
     }, [isOpen]);
 
-    // --- ACTIONS ---
+    // --- ACTIONS HOST ---
 
     const startEditing = (id: string) => {
         const current = registry[id];
         setSelectedId(id);
         setTempName(current?.name || "");
         setTempPos(current?.position || 0);
+        setNameError(false);
+    };
+
+    const validateAndSave = (overrideName?: string, overridePos?: number) => {
+        if (!selectedId) return;
+
+        const nameToCheck = overrideName !== undefined ? overrideName : tempName;
+
+        if (!nameToCheck.trim()) {
+            setNameError(true);
+            return;
+        }
+
+        const finalName = nameToCheck.trim();
+        const finalPos = overridePos !== undefined ? overridePos : tempPos;
+
+        updateSpeaker(selectedId, finalName, finalPos);
+
+        if (overrideName && onHostNameChange) {
+            onHostNameChange(finalName);
+        }
+
+        setSelectedId(null);
+        setNameError(false);
     };
 
     const saveSelection = () => {
-        if (!selectedId) return;
-        const finalName = tempName.trim() ? tempName.trim() : selectedId;
-        updateSpeaker(selectedId, finalName, tempPos);
-        setSelectedId(null);
+        validateAndSave();
     };
 
     const claimAsHost = () => {
-        if (!selectedId) return;
-        const nameToSave = tempName.trim() ? tempName.trim() : "Ich (Host)";
-        updateSpeaker(selectedId, nameToSave, 180);
-        if (onHostNameChange) onHostNameChange(nameToSave);
-        setSelectedId(null);
-    };
+        const nameToSave = tempName.trim() ? `${tempName.trim()} (Host)` : "";
+        validateAndSave(nameToSave, 180);    };
 
-    // Viewer Logic
-    const [viewerAngle, setViewerAngle] = useState(180);
+    // --- VIEWER ACTIONS ---
+
     const handleViewerSlide = (val: number[]) => {
         setViewerAngle(val[0]);
         calibrateView(val[0]);
     };
+
+    // --- SHARED INTERACTION (MOUSE & TOUCH) ---
+
+    const getEventCoords = (e: React.MouseEvent | React.TouchEvent) => {
+        if ('touches' in e) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        // Type Casting da wir wissen es ist MouseEvent wenn nicht Touch
+        const mouseE = e as React.MouseEvent;
+        return { x: mouseE.clientX, y: mouseE.clientY };
+    };
+
+    const handleInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+        // Blockieren, wenn Host nichts ausgewählt hat. Viewer darf immer.
+        if (role === 'host' && !selectedId) return;
+        if (!circleRef.current) return;
+
+        // Verhindert Scrollen auf Mobile während der Interaktion
+        // (Nur nötig wenn touch-action im CSS nicht greift, schadet aber nicht)
+        // e.preventDefault();
+
+        const coords = getEventCoords(e);
+        const rect = circleRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const x = coords.x - centerX;
+        const y = coords.y - centerY;
+
+        let angleDeg = Math.atan2(y, x) * (180 / Math.PI);
+        angleDeg += 90;
+
+        if (angleDeg < 0) angleDeg += 360;
+
+        const finalAngle = Math.round(angleDeg);
+
+        if (role === 'host') {
+            setTempPos(finalAngle);
+        } else {
+            setViewerAngle(finalAngle);
+            calibrateView(finalAngle);
+        }
+    };
+
+    const handleStart = () => setIsDragging(true);
+    const handleEnd = () => setIsDragging(false);
+
+    const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+        if (isDragging) {
+            handleInteraction(e);
+        }
+    };
+
+
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -83,19 +164,37 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh] overflow-y-auto">
+            <DialogContent
+                className="sm:max-w-md flex flex-col max-h-[90vh] overflow-y-auto"
+            >
                 <DialogHeader>
                     <DialogTitle>{role === 'host' ? 'Sitzplan konfigurieren' : 'Meine Ansicht kalibrieren'}</DialogTitle>
                 </DialogHeader>
 
                 {/* --- VISUALIZER (VORSCHAU) --- */}
                 <div className="flex flex-col items-center py-2 bg-muted/10 rounded-xl mb-2">
-                    <div className="relative w-64 h-64 rounded-full border-4 border-muted bg-background shadow-inner flex items-center justify-center overflow-hidden">
+                    <div
+                        ref={circleRef}
+                        className={cn(
+                            "relative w-64 h-64 rounded-full border-4 border-muted bg-background shadow-inner flex items-center justify-center overflow-hidden select-none",
+                            // Cursor Logik: Host im Edit-Mode ODER Viewer immer
+                            ((role === 'host' && selectedId) || role === 'viewer') ? "cursor-crosshair active:cursor-grabbing" : ""
+                        )}
+                        onMouseDown={handleStart}
+                        onMouseMove={handleMove}
+                        onMouseUp={handleEnd}
+                        onMouseLeave={handleEnd}
+                        onClick={handleInteraction}
+
+                        // Touch Events (Mobile)
+                        onTouchStart={handleStart}
+                        onTouchMove={handleMove}
+                        onTouchEnd={handleEnd}                    >
 
                         {/* DEKO: TISCH */}
                         <div className="absolute inset-4 border border-dashed border-border rounded-full opacity-30 pointer-events-none" />
 
-                        {/* STATIC: ICH (UNTEN) - Referenzpunkt */}
+                        {/* STATIC: ICH (UNTEN) */}
                         <div className="absolute bottom-3 flex flex-col items-center z-10 pointer-events-none opacity-50">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ich</span>
                         </div>
@@ -103,30 +202,21 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                         {/* --- HOST MODE VISUALS --- */}
                         {role === 'host' && (
                             <>
-                                {/* Alle BEREITS PLATZIERTEN Sprecher */}
                                 {allSpeakers.map(id => {
                                     const isEditingThisUser = id === selectedId;
-
-                                    // Nur anzeigen wenn in Registry oder gerade in Bearbeitung
                                     if (!registry[id] && !isEditingThisUser) return null;
 
                                     const pos = isEditingThisUser ? tempPos : registry[id].position;
                                     const name = isEditingThisUser ? (tempName || id) : registry[id].name;
-
-                                    // Text-Farbe holen
                                     const textColorClass = getSpeakerColor(id);
-
                                     const isHostPos = Math.abs(pos - 180) < 5;
 
                                     return (
                                         <div key={id}
                                              className={cn(
-                                                 "absolute w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all duration-300 border-2",
-                                                 // Background ist jetzt immer neutral/dunkel für Kontrast
+                                                 "absolute w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all duration-300 border-2 pointer-events-none",
                                                  "bg-background border-muted-foreground/20",
-                                                 // Wenn bearbeitet: größer & Highlight
                                                  isEditingThisUser ? "scale-125 z-50 ring-4" : "z-20",
-                                                 // Hier setzen wir die Textfarbe des Sprechers
                                                  textColorClass
                                              )}
                                              style={{ transform: `rotate(${pos}deg) translate(0, -105px) rotate(-${pos}deg)` }}
@@ -141,7 +231,7 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                         {/* --- VIEWER MODE VISUALS --- */}
                         {role === 'viewer' && (
                             <div
-                                className="absolute w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg z-30"
+                                className="absolute w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg z-30 pointer-events-none"
                                 style={{ transform: `rotate(${viewerAngle}deg) translate(0, -105px) rotate(-${viewerAngle}deg)` }}
                             >
                                 <Crown className="w-5 h-5" />
@@ -151,7 +241,11 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
 
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-2">
-                        {role === 'host' ? 'Live-Vorschau der Positionen' : 'Der Kreis stellt den Tisch dar'}
+                        {/* Hinweistext anpassen je nach Status */}
+                        {(role === 'viewer' || (role === 'host' && selectedId))
+                            ? 'Klicken oder ziehen Sie im Kreis, um die Position zu ändern'
+                            : 'Live-Vorschau der Positionen'
+                        }
                     </p>
                 </div>
 
@@ -159,6 +253,7 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                 {/* --- CONTROLS: HOST MODE --- */}
                 {role === 'host' && !selectedId && (
                     <div className="space-y-4 animate-in slide-in-from-bottom-2">
+                        {/* Host Speaker List (Unverändert) */}
                         <Alert className="bg-blue-50 border-blue-100 py-2">
                             <Info className="w-4 h-4 text-blue-600" />
                             <AlertDescription className="text-xs text-blue-700 ml-2">
@@ -191,16 +286,12 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                                         >
                                             <div className="flex flex-col items-start text-left w-full overflow-hidden">
                                                 <div className="flex items-center w-full gap-2">
-                                                    {/* Kleiner Dot in Sprecherfarbe (nutzt bg-current um Textfarbe zu erben) */}
                                                     <div className={cn("w-2 h-2 rounded-full shrink-0 bg-current", colorClass)} />
-
                                                     <span className={cn("font-semibold text-sm truncate", isConfigured && "text-foreground")}>
                                                         {registry[id]?.name || id}
                                                     </span>
-
                                                     {isConfigured && <Check className="w-3 h-3 ml-auto text-green-600 shrink-0"/>}
                                                 </div>
-
                                                 <span className="text-[10px] text-muted-foreground pl-4">
                                                     {isConfigured ? `${registry[id].position}° Position` : "Nicht zugewiesen"}
                                                 </span>
@@ -225,14 +316,20 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
 
                         <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
                             <div className="space-y-1">
-                                <Label>Wer ist das? (ID: {selectedId})</Label>
+                                <Label className={cn(nameError && "text-destructive")}>
+                                    Wer ist das? (ID: {selectedId}) <span className="text-destructive">*</span>
+                                </Label>
                                 <Input
                                     value={tempName}
-                                    onChange={e => setTempName(e.target.value)}
+                                    onChange={e => {
+                                        setTempName(e.target.value);
+                                        if(e.target.value.trim()) setNameError(false);
+                                    }}
                                     placeholder="Name eingeben (z.B. Fritz)"
-                                    className="bg-background"
+                                    className={cn("bg-background", nameError && "border-destructive focus-visible:ring-destructive")}
                                     autoFocus
                                 />
+                                {nameError && <p className="text-[10px] text-destructive">Bitte geben Sie einen Namen ein.</p>}
                             </div>
 
                             <div className="pt-2">
@@ -245,7 +342,7 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                                     Das bin ich (Host)
                                 </Button>
                                 <p className="text-[10px] text-muted-foreground text-center mt-1">
-                                    Nimmt Namen oben (oder "Ich") & setzt Position auf Unten.
+                                    Setzt Position auf Unten (180°). Name oben erforderlich.
                                 </p>
                             </div>
                         </div>
@@ -256,7 +353,6 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                                 <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{tempPos}°</span>
                             </div>
 
-                            {/* DER SLIDER */}
                             <Slider
                                 value={[tempPos]}
                                 max={360}
@@ -264,13 +360,6 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                                 onValueChange={(vals) => setTempPos(vals[0])}
                                 className="py-4 cursor-pointer"
                             />
-                            <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-                                <span>Oben</span>
-                                <span>Rechts</span>
-                                <span>Unten</span>
-                                <span>Links</span>
-                                <span>Oben</span>
-                            </div>
                         </div>
 
                         <DialogFooter className="gap-2 sm:gap-0 mt-4">
@@ -280,14 +369,13 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                     </div>
                 )}
 
-
                 {/* --- CONTROLS: VIEWER MODE --- */}
                 {role === 'viewer' && (
                     <div className="space-y-6 pt-2">
                         <Alert>
                             <Info className="w-4 h-4" />
                             <AlertDescription className="text-xs">
-                                Schauen Sie sich im Raum um. Wo sitzt der Host (die Person mit dem Tablet)?
+                                Schauen Sie sich  um. Wo sitzt der Host (die Person die die Sitzung mit Ihnen geteilt hat)?
                             </AlertDescription>
                         </Alert>
 
@@ -306,7 +394,7 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                             />
 
                             <p className="text-xs text-center text-muted-foreground">
-                                Schieben Sie den Regler, bis der rote Punkt auf dem Kreis mit der echten Position übereinstimmt.
+                                Schieben Sie den Regler oder nutzen Sie den Kreis oben, um die Position anzupassen.
                             </p>
                         </div>
                     </div>
