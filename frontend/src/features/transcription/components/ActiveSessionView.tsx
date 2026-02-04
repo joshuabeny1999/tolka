@@ -52,7 +52,7 @@ export function ActiveSessionView({
     return (
         <div className="flex flex-col h-full relative bg-background">
             <header
-                className="flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur sticky top-0 z-10">
+                className="flex items-center justify-between px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] border-b border-border bg-card/50 backdrop-blur sticky top-0 z-10">
                 <div className="flex items-center gap-3">
                     <div
                         className={`w-2.5 h-2.5 rounded-full transition-colors ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}/>

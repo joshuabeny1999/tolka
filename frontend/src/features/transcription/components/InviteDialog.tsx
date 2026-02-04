@@ -36,7 +36,7 @@ export function InviteDialog() {
         <DialogTrigger asChild>
             <Button variant="secondary" size="sm" className="gap-2 ml-2 h-8 px-3">
                 <Users className="w-3.5 h-3.5"/>
-                <span className="text-xs font-medium">Einladen</span>
+                <span className="hidden sm:inline text-xs font-medium">Einladen</span>
             </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-sm">
