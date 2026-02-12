@@ -7,7 +7,7 @@ import {
     AArrowDown,
     ArrowDownToLine,
     Radio,
-    Map
+    Map, Maximize
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {HideSpeakersDialog} from "@/features/transcription/components/HideSpeakersDialog.tsx";
@@ -23,6 +23,7 @@ interface ControlsProps {
     setAutoScroll: (enabled: boolean) => void;
     showMinimap: boolean;
     setShowMinimap: (enabled: boolean) => void;
+    toggleFullscreen: () => void;
     readOnly?: boolean;
     segments: TranscriptSegment[];
     registry: Record<string, { name: string; position: number, hidden: boolean }>;
@@ -38,6 +39,7 @@ export function Controls({
                              setAutoScroll,
                              showMinimap,
                              setShowMinimap,
+                             toggleFullscreen,
                              readOnly = false,
                              segments,
                              registry,
@@ -83,6 +85,8 @@ export function Controls({
                         size="icon"
                         onClick={() => setAutoScroll(!autoScroll)}
                         className={cn("h-10 w-10 rounded-full transition-all", autoScroll && "bg-blue-500/15 text-blue-600")}
+                        title="Auto-Scroll ein/aus"
+
                     >
                         <ArrowDownToLine className={cn("w-4 h-4", !autoScroll && "opacity-50")}/>
                     </Button>
@@ -147,6 +151,15 @@ export function Controls({
                     >
                         <Map className={cn("w-4 h-4", !showMinimap && "opacity-50")}/>
                     </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleFullscreen}
+                            className="h-10 w-10 rounded-full hover:bg-background border border-transparent hover:border-border border border-border/50"
+                            title="Vollbildmodus"
+                        >
+                            <Maximize className="w-4 h-4 text-muted-foreground" />
+                        </Button>
                 </div>
                 </div>
             </div>

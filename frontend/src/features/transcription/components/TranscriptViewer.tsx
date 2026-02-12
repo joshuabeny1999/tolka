@@ -16,6 +16,7 @@ interface TranscriptViewerProps {
     getName: (id: string) => string;
     getHidden: (id: string) => boolean;
     getDirection: (id: string) => number | null;
+    className?: string;
 }
 
 export function TranscriptViewer({
@@ -29,7 +30,8 @@ export function TranscriptViewer({
                                      setAutoScroll,
                                      getName,
                                      getHidden,
-                                     getDirection
+                                     getDirection,
+                                     className
                                  }: TranscriptViewerProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -105,7 +107,10 @@ export function TranscriptViewer({
         <div
             ref={containerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-background"
+            className={cn(
+                "flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-background",
+                className
+            )}
         >
             <div className="max-w-3xl mx-auto space-y-6">
 

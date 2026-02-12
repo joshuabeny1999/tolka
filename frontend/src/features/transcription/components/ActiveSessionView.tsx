@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { TranscriptViewer } from "./TranscriptViewer";
 import { Controls } from "./Controls";
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "@/components/ui/button";
 import {XCircle, LogOut} from "lucide-react";
 import type { ProviderType, TranscriptSegment } from "../types";
-import { useSpeakerRegistry } from "@/features/transcription/hooks/useSpeakerRegistry";
 import { CalibrationDialog } from "./CalibrationDialog";
 import {InviteDialog} from "./InviteDialog";
 import {TranscriptMinimap} from "@/features/transcription/components/TranscriptMinimap.tsx";
@@ -22,7 +20,14 @@ interface ActiveSessionViewProps {
     meta: { name: string; color: string };
     toggleRecording: (val: boolean) => void;
     onLeave: () => void;
-    socketRef: React.RefObject<WebSocket | null>;
+    toggleFullscreen: () => void;
+    fontSize: number;
+    setFontSize: (size: number) => void;
+    visibleMinimap: boolean;
+    setVisibleMinimap: (enabled: boolean) => void;
+    autoScroll: boolean;
+    setAutoScroll: (enabled: boolean) => void;
+    registryData: any;
 }
 
 
@@ -37,22 +42,19 @@ export function ActiveSessionView({
                                       meta,
                                       toggleRecording,
                                       onLeave,
-                                      socketRef
+                                      toggleFullscreen,
+                                      fontSize,
+                                      setFontSize,
+                                      visibleMinimap,
+                                      setVisibleMinimap,
+                                      autoScroll,
+                                      setAutoScroll,
+                                      registryData
                                   }: ActiveSessionViewProps) {
-    const [fontSize, setFontSize] = useState(24);
-    const [visibleMinimap, setVisibleMinimap] = useState(true);
-    const [autoScroll, setAutoScroll] = useState(true);
-
     const {
-        registry,
-        updateSpeaker,
-        updateSpeakerHiddenStatus,
-        calibrateView,
-        getName,
-        getHidden,
-        getDirection,
-        getRotationOffset,
-    } = useSpeakerRegistry(socketRef,isRecording);
+        registry, updateSpeaker, updateSpeakerHiddenStatus, calibrateView,
+        getName, getHidden, getDirection, getRotationOffset,
+    } = registryData;
 
     return (
         <div className="flex flex-col h-full relative bg-background">
@@ -141,6 +143,7 @@ export function ActiveSessionView({
                 setAutoScroll={setAutoScroll}
                 showMinimap={visibleMinimap}
                 setShowMinimap={setVisibleMinimap}
+                toggleFullscreen={toggleFullscreen}
                 readOnly={role === 'viewer'}
                 segments={segments}
                 registry={registry}

@@ -7,9 +7,10 @@ interface TranscriptMinimapProps {
     currentSpeakerId?: string | null;
     getRotationOffset: () => number;
     visible: boolean;
+    className?: string;
 }
 
-export function TranscriptMinimap({ registry, currentSpeakerId, getRotationOffset, visible }: TranscriptMinimapProps) {
+export function TranscriptMinimap({ registry, currentSpeakerId, getRotationOffset, visible, className }: TranscriptMinimapProps) {
     const viewRotation = getRotationOffset();
 
     const visibleSpeakers = useMemo(() => {
@@ -22,10 +23,11 @@ export function TranscriptMinimap({ registry, currentSpeakerId, getRotationOffse
     return (
         // Container ist immer da, aber blendet Inhalt aus
         <div className={cn(
-            "fixed top-20 right-8 z-40 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] origin-top-right",
+            "fixed top-20 right-5 z-40 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] origin-top-right",
             visible
                 ? "opacity-100 scale-100 translate-y-0"
-                : "opacity-0 scale-50 -translate-y-4 pointer-events-none"
+                : "opacity-0 scale-50 -translate-y-4 pointer-events-none",
+            className
         )}>
             {/* DER KREIS */}
             <div className="relative w-16 h-16 rounded-full bg-background/90 backdrop-blur-md border shadow-lg flex items-center justify-center overflow-hidden">
