@@ -56,7 +56,7 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
     const startEditing = (id: string) => {
         const current = registry[id];
         setSelectedId(id);
-        setTempName(current?.name || "");
+        setTempName(current?.name === id ? "" : current?.name || "");
         setTempPos(current?.position || 0);
         setNameError(false);
     };
@@ -271,7 +271,7 @@ export function CalibrationDialog({ role, segments, registry, updateSpeaker, cal
                                     </div>
                                 )}
                                 {allSpeakers.map(id => {
-                                    const isConfigured = !!registry[id];
+                                    const isConfigured = registry[id] && registry[id].position !== undefined;
                                     const colorClass = getSpeakerColor(id);
 
                                     return (

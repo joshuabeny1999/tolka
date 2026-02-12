@@ -14,6 +14,7 @@ interface TranscriptViewerProps {
     autoScroll: boolean;
     setAutoScroll: (enabled: boolean) => void;
     getName: (id: string) => string;
+    getHidden: (id: string) => boolean;
     getDirection: (id: string) => number | null;
 }
 
@@ -27,6 +28,7 @@ export function TranscriptViewer({
                                      autoScroll,
                                      setAutoScroll,
                                      getName,
+                                     getHidden,
                                      getDirection
                                  }: TranscriptViewerProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -48,24 +50,20 @@ export function TranscriptViewer({
     const renderSegment = (text: string, speakerID: string | null, isPartial = false) => {
         if (!text) return null;
 
+        const hidden = speakerID ? getHidden(speakerID) : false;
+        if (hidden) return null;
+
         const speakerName = speakerID ? getName(speakerID) : "Unknown";
         const direction = speakerID ? getDirection(speakerID) : null;
-
         const hasSpecificSpeaker = speakerID && speakerID !== "Unknown";
         const colorClass = hasSpecificSpeaker ? getSpeakerColor(speakerID) : accentColor;
-
-        // Pfeil-Rotation
         const rotationStyle = direction !== null ? { transform: `rotate(${direction}deg)` } : {};
 
         return (
-            // Wrapper ist jetzt flex-col für "Header oben, Text unten"
             <div className={cn("flex flex-col mb-4", isPartial && "opacity-80")} style={{ fontSize: `${fontSize}px` }}>
-
-                {/* HEADER: Pfeil & Name (Zentriert & Faded) */}
+                {/* HEADER: Pfeil & Name */}
                 {(direction !== null || hasSpecificSpeaker) && (
                     <div className="flex items-center gap-2 mb-1 opacity-60 select-none">
-
-                        {/* Pfeil */}
                         {direction !== null && (
                             <ArrowUp
                                 className={cn("w-[0.8em] h-[0.8em] transition-transform duration-500", colorClass)}
@@ -73,12 +71,10 @@ export function TranscriptViewer({
                                 strokeWidth={3}
                             />
                         )}
-
-                        {/* Name */}
                         {hasSpecificSpeaker && (
                             <span className={cn("text-[0.6em] font-bold uppercase tracking-wider leading-none", colorClass)}>
-                           {speakerName}
-                       </span>
+                                {speakerName}
+                            </span>
                         )}
                     </div>
                 )}
@@ -86,8 +82,6 @@ export function TranscriptViewer({
                 {/* TEXT BLOCK */}
                 <div className={cn("font-medium leading-relaxed", colorClass)}>
                     {text}
-
-                    {/* Cursor Pulse (Partial) */}
                     {isPartial && isRecording && (
                         <span className="inline-block w-2 h-[0.8em] ml-1 align-middle animate-pulse opacity-50 bg-current"/>
                     )}
@@ -104,14 +98,15 @@ export function TranscriptViewer({
         >
             <div className="max-w-3xl mx-auto space-y-6">
 
-                {segments.map((seg) => (
-                    <div key={seg.id} className="animate-in fade-in slide-in-from-bottom-1">
-                        {renderSegment(seg.text, seg.speaker)}
-                    </div>
-                ))}
+                {segments
+                    .filter(seg => !getHidden(seg.speaker))
+                    .map((seg) => (
+                        <div key={seg.id} className="animate-in fade-in slide-in-from-bottom-1">
+                            {renderSegment(seg.text, seg.speaker)}
+                        </div>
+                    ))}
 
                 {(partialText || isRecording) && (
-
                     <div>
                         {renderSegment(partialText, partialSpeaker ?? null, true)}
                     </div>

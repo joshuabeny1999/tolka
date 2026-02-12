@@ -13,6 +13,7 @@ export interface TranscriptSegment {
 export interface SpeakerData {
     name: string;
     position: number; // 0-360 Grad. 180 = Below (Host Position)
+    hidden: boolean;
 }
 
 // NEU: Datenstruktur für Speaker im Backend/Frontend Sync

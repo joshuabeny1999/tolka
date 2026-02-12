@@ -57,7 +57,7 @@ export function useSpeakerRegistry(
         // Optimistic Update
         setRegistry(prev => ({
             ...prev,
-            [id]: { name, position }
+            [id]: { ...prev[id], name, position }
         }));
 
         if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -69,6 +69,14 @@ export function useSpeakerRegistry(
             }));
         }
     }, [socketRef]);
+
+    const updateSpeakerHiddenStatus = (id: string, hidden: boolean) => {
+        const name = registry[id] ? registry[id].name : id;
+        setRegistry(prev => ({
+            ...prev,
+            [id]: { ...prev[id], name, hidden }
+        }));
+    };
 
     const calibrateView = useCallback((hostVisualAngle: number) => {
         const serverHostPos = 180;
@@ -85,5 +93,9 @@ export function useSpeakerRegistry(
         return registry[id]?.name || id;
     }, [registry]);
 
-    return { registry, updateSpeaker, calibrateView, getDirection, getName };
+    const getHidden = useCallback((id: string) => {
+        return registry[id]?.hidden || false;
+    }, [registry]);
+
+    return { registry, updateSpeaker, updateSpeakerHiddenStatus, calibrateView, getDirection, getName, getHidden };
 }

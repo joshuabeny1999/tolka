@@ -44,8 +44,10 @@ export function ActiveSessionView({
     const {
         registry,
         updateSpeaker,
+        updateSpeakerHiddenStatus,
         calibrateView,
         getName,
+        getHidden,
         getDirection
     } = useSpeakerRegistry(socketRef,isRecording);
 
@@ -115,6 +117,7 @@ export function ActiveSessionView({
                 autoScroll={autoScroll}
                 setAutoScroll={setAutoScroll}
                 getName={getName}
+                getHidden={getHidden}
                 getDirection={getDirection}
             />
 
@@ -128,6 +131,9 @@ export function ActiveSessionView({
                 autoScroll={autoScroll}
                 setAutoScroll={setAutoScroll}
                 readOnly={role === 'viewer'}
+                segments={segments}
+                registry={registry}
+                updateSpeakerHiddenStatus={updateSpeakerHiddenStatus}
             />
         </div>
     );

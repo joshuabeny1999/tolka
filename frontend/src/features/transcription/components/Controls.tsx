@@ -9,6 +9,8 @@ import {
     Radio
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {HideSpeakersDialog} from "@/features/transcription/components/HideSpeakersDialog.tsx";
+import type {TranscriptSegment} from "@/features/transcription/types";
 
 interface ControlsProps {
     fontSize: number;
@@ -19,6 +21,9 @@ interface ControlsProps {
     autoScroll: boolean;
     setAutoScroll: (enabled: boolean) => void;
     readOnly?: boolean;
+    segments: TranscriptSegment[];
+    registry: Record<string, { name: string; position: number, hidden: boolean }>;
+    updateSpeakerHiddenStatus: (id: string, hidden: boolean) => void;
 }
 
 export function Controls({
@@ -28,7 +33,10 @@ export function Controls({
                              onToggleRecording,
                              autoScroll,
                              setAutoScroll,
-                             readOnly = false
+                             readOnly = false,
+                             segments,
+                             registry,
+                             updateSpeakerHiddenStatus
                          }: ControlsProps) {
 
     const adjustFont = (delta: number) => {
@@ -113,6 +121,10 @@ export function Controls({
                 </div>
 
                 <div className="flex items-center justify-end min-w-[140px] order-3">
+                    <HideSpeakersDialog
+                        segments={segments}
+                        registry={registry}
+                        updateSpeakerHiddenStatus={updateSpeakerHiddenStatus} />
                 </div>
             </div>
         </div>
