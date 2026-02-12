@@ -86,6 +86,7 @@ export function useSpeakerRegistry(
     const getDirection = useCallback((speakerId: string): number | null => {
         const data = registry[speakerId];
         if (!data) return null;
+        if (data.position === undefined) return null;
         return normalize(data.position + rotationOffset);
     }, [registry, rotationOffset]);
 

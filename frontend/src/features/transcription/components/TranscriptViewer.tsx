@@ -48,10 +48,10 @@ export function TranscriptViewer({
     };
 
     const renderSegment = (text: string, speakerID: string | null, isPartial = false) => {
-        if (!text) return null;
+        if (!text && !isPartial) return null;
 
         const hidden = speakerID ? getHidden(speakerID) : false;
-        if (hidden) return null;
+        if (hidden && !isPartial) return null;
 
         const speakerName = speakerID ? getName(speakerID) : "Unknown";
         const direction = speakerID ? getDirection(speakerID) : null;
@@ -61,7 +61,8 @@ export function TranscriptViewer({
 
         return (
             <div className={cn("flex flex-col mb-4", isPartial && "opacity-80")} style={{ fontSize: `${fontSize}px` }}>
-                {/* HEADER: Pfeil & Name */}
+
+                {/* HEADER: Identisch zum normalen UI (Name & Pfeil) */}
                 {(direction !== null || hasSpecificSpeaker) && (
                     <div className="flex items-center gap-2 mb-1 opacity-60 select-none">
                         {direction !== null && (
@@ -79,11 +80,21 @@ export function TranscriptViewer({
                     </div>
                 )}
 
-                {/* TEXT BLOCK */}
                 <div className={cn("font-medium leading-relaxed", colorClass)}>
-                    {text}
-                    {isPartial && isRecording && (
-                        <span className="inline-block w-2 h-[0.8em] ml-1 align-middle animate-pulse opacity-50 bg-current"/>
+
+                    {hidden ? (
+                        <div className="flex items-center gap-2 py-1 animate-pulse opacity-70">
+                            <span className="ml-2 text-[0.8em] italic opacity-80">
+                                spricht...
+                            </span>
+                        </div>
+                    ) : (
+                        <>
+                            {text}
+                            {isPartial && isRecording && (
+                                <span className="inline-block w-2 h-[0.8em] ml-1 align-middle animate-pulse opacity-50 bg-current"/>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
@@ -106,14 +117,14 @@ export function TranscriptViewer({
                         </div>
                     ))}
 
+                {/* Live/Partial Bereich */}
                 {(partialText || isRecording) && (
-                    <div>
+                    <div className="animate-in fade-in">
                         {renderSegment(partialText, partialSpeaker ?? null, true)}
                     </div>
                 )}
-
                 <div ref={bottomRef} className="h-4" />
             </div>
         </div>
     );
-}
+            }
