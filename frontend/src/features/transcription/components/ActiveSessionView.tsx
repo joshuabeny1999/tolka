@@ -8,6 +8,7 @@ import type { ProviderType, TranscriptSegment } from "../types";
 import { useSpeakerRegistry } from "@/features/transcription/hooks/useSpeakerRegistry";
 import { CalibrationDialog } from "./CalibrationDialog";
 import {InviteDialog} from "./InviteDialog";
+import {TranscriptMinimap} from "@/features/transcription/components/TranscriptMinimap.tsx";
 
 interface ActiveSessionViewProps {
     roomId: string;
@@ -39,6 +40,7 @@ export function ActiveSessionView({
                                       socketRef
                                   }: ActiveSessionViewProps) {
     const [fontSize, setFontSize] = useState(24);
+    const [visibleMinimap, setVisibleMinimap] = useState(true);
     const [autoScroll, setAutoScroll] = useState(true);
 
     const {
@@ -48,7 +50,8 @@ export function ActiveSessionView({
         calibrateView,
         getName,
         getHidden,
-        getDirection
+        getDirection,
+        getRotationOffset,
     } = useSpeakerRegistry(socketRef,isRecording);
 
     return (
@@ -120,6 +123,12 @@ export function ActiveSessionView({
                 getHidden={getHidden}
                 getDirection={getDirection}
             />
+            <TranscriptMinimap
+                registry={registry}
+                currentSpeakerId={partialSpeaker} // Nutze partialSpeaker für Live-Effekt
+                getRotationOffset={getRotationOffset}
+                visible={visibleMinimap}
+            />
 
             {/* Controls */}
             <Controls
@@ -130,6 +139,8 @@ export function ActiveSessionView({
                 accentColor={meta.color}
                 autoScroll={autoScroll}
                 setAutoScroll={setAutoScroll}
+                showMinimap={visibleMinimap}
+                setShowMinimap={setVisibleMinimap}
                 readOnly={role === 'viewer'}
                 segments={segments}
                 registry={registry}

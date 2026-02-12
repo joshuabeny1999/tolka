@@ -98,5 +98,6 @@ export function useSpeakerRegistry(
         return registry[id]?.hidden || false;
     }, [registry]);
 
-    return { registry, updateSpeaker, updateSpeakerHiddenStatus, calibrateView, getDirection, getName, getHidden };
+    const getRotationOffset = () => rotationOffset;
+    return { registry, updateSpeaker, updateSpeakerHiddenStatus, calibrateView, getDirection, getName, getHidden, getRotationOffset };
 }

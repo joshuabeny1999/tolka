@@ -6,7 +6,8 @@ import {
     AArrowUp,
     AArrowDown,
     ArrowDownToLine,
-    Radio
+    Radio,
+    Map
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {HideSpeakersDialog} from "@/features/transcription/components/HideSpeakersDialog.tsx";
@@ -20,6 +21,8 @@ interface ControlsProps {
     accentColor: string;
     autoScroll: boolean;
     setAutoScroll: (enabled: boolean) => void;
+    showMinimap: boolean;
+    setShowMinimap: (enabled: boolean) => void;
     readOnly?: boolean;
     segments: TranscriptSegment[];
     registry: Record<string, { name: string; position: number, hidden: boolean }>;
@@ -33,6 +36,8 @@ export function Controls({
                              onToggleRecording,
                              autoScroll,
                              setAutoScroll,
+                             showMinimap,
+                             setShowMinimap,
                              readOnly = false,
                              segments,
                              registry,
@@ -57,7 +62,7 @@ export function Controls({
                             onClick={() => adjustFont(-2)}
                             disabled={fontSize <= 14}
                         >
-                            <AArrowDown className="w-4 h-4" />
+                            <AArrowDown className="w-4 h-4"/>
                         </Button>
                         <span className="w-10 text-center font-mono text-xs text-muted-foreground select-none">
                             {fontSize}
@@ -69,7 +74,7 @@ export function Controls({
                             onClick={() => adjustFont(2)}
                             disabled={fontSize >= 42}
                         >
-                            <AArrowUp className="w-4 h-4" />
+                            <AArrowUp className="w-4 h-4"/>
                         </Button>
                     </div>
 
@@ -79,7 +84,7 @@ export function Controls({
                         onClick={() => setAutoScroll(!autoScroll)}
                         className={cn("h-10 w-10 rounded-full transition-all", autoScroll && "bg-blue-500/15 text-blue-600")}
                     >
-                        <ArrowDownToLine className={cn("w-4 h-4", !autoScroll && "opacity-50")} />
+                        <ArrowDownToLine className={cn("w-4 h-4", !autoScroll && "opacity-50")}/>
                     </Button>
                 </div>
 
@@ -87,8 +92,10 @@ export function Controls({
                 <div className="flex items-center gap-3 order-1 md:order-2">
                     {readOnly ? (
                         // VIEWER VIEW
-                        <div className="flex items-center gap-3 px-6 py-2 rounded-full border border-border/60 bg-secondary/20">
-                            <Radio className={cn("w-4 h-4 animate-pulse", isRecording ? "text-green-500" : "text-muted-foreground")} />
+                        <div
+                            className="flex items-center gap-3 px-6 py-2 rounded-full border border-border/60 bg-secondary/20">
+                            <Radio
+                                className={cn("w-4 h-4 animate-pulse", isRecording ? "text-green-500" : "text-muted-foreground")}/>
                             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                 {isRecording ? "Receiving Live Audio" : "Waiting for Host"}
                             </span>
@@ -102,12 +109,13 @@ export function Controls({
                                 : "bg-background border-border"
                         )}>
                             {isRecording ? (
-                                <Mic className="w-5 h-5 text-red-500 animate-pulse" />
+                                <Mic className="w-5 h-5 text-red-500 animate-pulse"/>
                             ) : (
-                                <MicOff className="w-5 h-5 text-muted-foreground" />
+                                <MicOff className="w-5 h-5 text-muted-foreground"/>
                             )}
                             <div className="flex flex-col">
-                                <span className={cn("text-xs font-bold uppercase tracking-wider", isRecording ? "text-red-600" : "text-muted-foreground")}>
+                                <span
+                                    className={cn("text-xs font-bold uppercase tracking-wider", isRecording ? "text-red-600" : "text-muted-foreground")}>
                                     {isRecording ? "On Air" : "Offline"}
                                 </span>
                             </div>
@@ -121,10 +129,25 @@ export function Controls({
                 </div>
 
                 <div className="flex items-center justify-end min-w-[140px] order-3">
+                    <div className="flex items-center gap-2 order-2 md:order-1">
                     <HideSpeakersDialog
                         segments={segments}
                         registry={registry}
-                        updateSpeakerHiddenStatus={updateSpeakerHiddenStatus} />
+                        updateSpeakerHiddenStatus={updateSpeakerHiddenStatus}/>
+                    <Button
+                        variant={showMinimap ? "secondary" : "ghost"}
+                        size="icon"
+                        onClick={() => setShowMinimap(!showMinimap)}
+                        className={cn(
+                            "h-10 w-10 rounded-full transition-all",
+                            // Gleiche Farb-Logik wie beim AutoScroll Button (Blau bei Aktiv)
+                            showMinimap && "bg-blue-500/15 text-blue-600"
+                        )}
+                        title="Minimap ein/ausblenden"
+                    >
+                        <Map className={cn("w-4 h-4", !showMinimap && "opacity-50")}/>
+                    </Button>
+                </div>
                 </div>
             </div>
         </div>

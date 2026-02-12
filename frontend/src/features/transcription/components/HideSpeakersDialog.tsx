@@ -36,12 +36,14 @@ export function HideSpeakersDialog({ segments, registry, updateSpeakerHiddenStat
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="bg-secondary/30 rounded-full px-4 py-2 border border-border/50">
+                <div className="flex items-center bg-secondary/30 rounded-full p-1 border border-border/50">
+                <Button variant="ghost" size="sm">
                     <EyeOff className="w-4 h-4" />
                     <span className="text-xs font-medium">
                         Hide Speakers
                     </span>
                 </Button>
+                </div>
             </DialogTrigger>
 
             <DialogContent
