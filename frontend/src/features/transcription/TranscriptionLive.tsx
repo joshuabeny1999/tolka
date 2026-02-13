@@ -42,6 +42,7 @@ export function TranscriptionLive() {
                 meta={meta}
                 isRecording={isRecording}
                 fontSize={fontSize}
+                setFontSize={setFontSize}
                 autoScroll={autoScroll}
                 visibleMinimap={visibleMinimap}
                 setAutoScroll={setAutoScroll}

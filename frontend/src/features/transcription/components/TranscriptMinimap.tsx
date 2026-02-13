@@ -66,7 +66,7 @@ export function TranscriptMinimap({ registry, currentSpeakerId, getRotationOffse
                                         "bg-current",
                                         isSpeaking
                                             ? "w-3 h-3 ring-2 ring-background"
-                                            : "w-2.5 h-2.5 opacity-90"
+                                            : "w-2.5 h-2.5 opacity-60"
                                     )}
                                 />
                             </div>

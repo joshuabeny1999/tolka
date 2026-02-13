@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowDownToLine, Minimize } from "lucide-react";
+import {AArrowDown, AArrowUp, ArrowDownToLine, Minimize} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TranscriptViewer } from "./TranscriptViewer";
 import { TranscriptMinimap } from "@/features/transcription/components/TranscriptMinimap";
@@ -12,6 +12,7 @@ interface FullscreenProps {
     meta: { name: string; color: string };
     isRecording: boolean;
     fontSize: number;
+    setFontSize: (size: number) => void;
     visibleMinimap: boolean;
     autoScroll: boolean;
     setAutoScroll: (val: boolean) => void;
@@ -21,7 +22,7 @@ interface FullscreenProps {
 
 export function ActiveSessionFullscreenView({
                                                 segments, partialText, partialSpeaker, meta, isRecording,
-                                                fontSize, visibleMinimap, autoScroll, setAutoScroll, onExitFullscreen,
+                                                fontSize, setFontSize, visibleMinimap, autoScroll, setAutoScroll, onExitFullscreen,
                                                 registryData
                                             }: FullscreenProps) {
 
@@ -29,6 +30,9 @@ export function ActiveSessionFullscreenView({
         registry, getName, getHidden, getDirection, getRotationOffset
     } = registryData;
 
+    const adjustFont = (delta: number) => {
+        setFontSize(Math.max(14, Math.min(42, fontSize + delta)));
+    };
     return (
         <div className="flex flex-col h-full relative bg-background animate-in fade-in duration-300">
 
@@ -59,7 +63,32 @@ export function ActiveSessionFullscreenView({
             {/* DOCK / BOTTOM BAR - Kleiner & Kompakter */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1 rounded-full bg-background/80 backdrop-blur-md border shadow-xl animate-in slide-in-from-bottom-4">
 
-                {/* AutoScroll Button */}
+
+                <div className="flex items-center  rounded-full p-1  ">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => adjustFont(-2)}
+                        disabled={fontSize <= 14}
+                    >
+                        <AArrowDown className="w-4 h-4"/>
+                    </Button>
+                    <span className="w-10 text-center font-mono text-xs text-muted-foreground select-none">
+                            {fontSize}
+                        </span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => adjustFont(2)}
+                        disabled={fontSize >= 42}
+                    >
+                        <AArrowUp className="w-4 h-4"/>
+                    </Button>
+                </div>
+                <div className="w-px h-4 bg-border/50 mx-1" />
+
                 <Button
                     variant={autoScroll ? "default" : "ghost"}
                     size="icon"
@@ -73,10 +102,9 @@ export function ActiveSessionFullscreenView({
                     <ArrowDownToLine className={cn("w-4 h-4", !autoScroll && "opacity-50")} /> {/* Icon kleiner */}
                 </Button>
 
-                {/* Trennlinie kleiner */}
-                <div className="w-px h-3 bg-border/50 mx-1" />
 
-                {/* Exit Button */}
+                <div className="w-px h-4 bg-border/50 mx-1" />
+
                 <Button
                     variant="ghost"
                     size="icon"
