@@ -27,6 +27,7 @@ interface ControlsProps {
     readOnly?: boolean;
     segments: TranscriptSegment[];
     registry: Record<string, { name: string; position: number, hidden: boolean }>;
+    micLabel?: string;
     updateSpeakerHiddenStatus: (id: string, hidden: boolean) => void;
 }
 
@@ -43,6 +44,7 @@ export function Controls({
                              readOnly = false,
                              segments,
                              registry,
+                            micLabel,
                              updateSpeakerHiddenStatus
                          }: ControlsProps) {
 
@@ -120,7 +122,7 @@ export function Controls({
                             <div className="flex flex-col">
                                 <span
                                     className={cn("text-xs font-bold uppercase tracking-wider", isRecording ? "text-red-600" : "text-muted-foreground")}>
-                                    {isRecording ? "On Air" : "Offline"}
+                                    {isRecording ? "On Air (" + micLabel + ")" : "Offline"}
                                 </span>
                             </div>
                             <Switch

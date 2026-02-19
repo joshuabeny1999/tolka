@@ -31,5 +31,6 @@ export interface UseAudioStreamReturn {
     stopRecording: () => void;
     connectViewer: () => void;
     socketRef: RefObject<WebSocket | null>;
+    micLabel: string;
     error: string | null;
 }

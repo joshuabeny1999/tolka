@@ -6,6 +6,7 @@ export const useBaseAudioStream = (wsUrl: string) => {
     const [segments, setSegments] = useState<TranscriptSegment[]>([]);
     const [partialText, setPartialText] = useState('');
     const [partialSpeaker, setPartialSpeaker] = useState<string | null>(null);
+    const [micLabel, setMicLabel] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const socketRef = useRef<WebSocket | null>(null);
@@ -18,6 +19,7 @@ export const useBaseAudioStream = (wsUrl: string) => {
         setPartialText('');
         setPartialSpeaker(null);
         setError(null);
+        setMicLabel(null);
     }, [wsUrl]);
 
     // --- SHARED: Message Handling ---
@@ -66,6 +68,7 @@ export const useBaseAudioStream = (wsUrl: string) => {
             }
             socketRef.current = null;
         }
+        setMicLabel(null);
     }, []);
 
     const resetState = useCallback(() => {
@@ -129,6 +132,8 @@ export const useBaseAudioStream = (wsUrl: string) => {
         handleMessage,
         baseCleanup,
         resetState,
-        connectViewer
+        connectViewer,
+        micLabel,
+        setMicLabel
     };
 };

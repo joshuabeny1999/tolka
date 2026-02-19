@@ -15,7 +15,7 @@ export function TranscriptionLive() {
 
     const {
         provider, isRecording, toggleRecording, segments, partialText,
-        partialSpeaker, socketRef, error, meta
+        partialSpeaker, socketRef, error, micLabel, meta
     } = useTranscription(roomId, role, sessionProvider);
 
     const [fontSize, setFontSize] = useState(24);
@@ -72,6 +72,7 @@ export function TranscriptionLive() {
             setVisibleMinimap={setVisibleMinimap}
             autoScroll={autoScroll}
             setAutoScroll={setAutoScroll}
+            micLabel={micLabel}
             registryData={registryData}
         />
     );

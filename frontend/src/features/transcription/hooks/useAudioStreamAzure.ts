@@ -37,7 +37,7 @@ const convertFloat32ToInt16 = (buffer: Float32Array) => {
 export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
     const {
         isRecording, segments, partialText, partialSpeaker, error,
-        socketRef, isRecordingRef,
+        socketRef, isRecordingRef, micLabel, setMicLabel,
         setIsRecording, setError, handleMessage, baseCleanup, resetState, connectViewer
     } = useBaseAudioStream(wsUrl);
 
@@ -87,6 +87,11 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
                     });
                     streamRef.current = stream;
 
+                    const audioTrack = stream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        setMicLabel(audioTrack.label);
+                    }
+
                     const source = context.createMediaStreamSource(stream);
                     sourceRef.current = source;
                     // Deprecated but required for raw PCM manipulation in some contexts without AudioWorklet complexity
@@ -122,7 +127,7 @@ export const useAudioStreamAzure = (wsUrl: string): UseAudioStreamReturn => {
             setError('Connection Error');
             isRecordingRef.current = false;
         }
-    }, [wsUrl, stopRecording, handleMessage, setError, setIsRecording, isRecordingRef, socketRef, resetState]);
+    }, [wsUrl, stopRecording, handleMessage, setError, setMicLabel, setIsRecording, isRecordingRef, socketRef, resetState]);
 
-    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, socketRef, error };
+    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, socketRef, micLabel, error };
 };

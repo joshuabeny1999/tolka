@@ -28,6 +28,7 @@ interface ActiveSessionViewProps {
     autoScroll: boolean;
     setAutoScroll: (enabled: boolean) => void;
     registryData: any;
+    micLabel: string;
 }
 
 
@@ -49,6 +50,7 @@ export function ActiveSessionView({
                                       setVisibleMinimap,
                                       autoScroll,
                                       setAutoScroll,
+                                      micLabel,
                                       registryData
                                   }: ActiveSessionViewProps) {
     const {
@@ -147,6 +149,7 @@ export function ActiveSessionView({
                 readOnly={role === 'viewer'}
                 segments={segments}
                 registry={registry}
+                micLabel={micLabel}
                 updateSpeakerHiddenStatus={updateSpeakerHiddenStatus}
             />
         </div>

@@ -79,6 +79,7 @@ export function useTranscription(roomId: string | null, role: "host" | "viewer" 
         error: activeStream.stream.error,
         toggleRecording,
         socketRef: activeStream.stream.socketRef,
+        micLabel: activeStream.stream.micLabel,
         meta: activeStream.meta
     };
 }
