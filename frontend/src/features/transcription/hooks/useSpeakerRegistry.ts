@@ -8,14 +8,12 @@ const normalize = (deg: number) => {
 };
 
 // Wir brauchen isConnected (alias isRecording), um den richtigen Moment abzupassen
-export function useSpeakerRegistry(
+function useSpeakerRegistry(
     socketRef: React.RefObject<WebSocket | null>,
     isConnected: boolean
 ) {
     const [registry, setRegistry] = useState<Record<string, SpeakerData>>({});
     const [rotationOffset, setRotationOffset] = useState(0);
-
-    // Verhindert endlos-Loops beim Anfragen
     const hasRequestedSync = useRef(false);
 
     // Reset bei Verbindungsabbruch
@@ -24,6 +22,12 @@ export function useSpeakerRegistry(
             hasRequestedSync.current = false;
         }
     }, [isConnected]);
+
+    const clearRegistry = useCallback(() => {
+        setRegistry({});
+        setRotationOffset(0);
+        hasRequestedSync.current = false;
+    }, []);
 
     useEffect(() => {
         const socket = socketRef.current;
@@ -99,5 +103,7 @@ export function useSpeakerRegistry(
     }, [registry]);
 
     const getRotationOffset = () => rotationOffset;
-    return { registry, updateSpeaker, updateSpeakerHiddenStatus, calibrateView, getDirection, getName, getHidden, getRotationOffset };
+    return { registry, updateSpeaker, updateSpeakerHiddenStatus, calibrateView, getDirection, getName, getHidden, getRotationOffset, clearRegistry };
 }
+
+export default useSpeakerRegistry

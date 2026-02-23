@@ -6,7 +6,7 @@ export const useAudioStreamDeepgram = (wsUrl: string): UseAudioStreamReturn => {
     const {
         isRecording, segments, partialText, partialSpeaker, error,
         socketRef, isRecordingRef,
-        setIsRecording, setError, handleMessage, baseCleanup, resetState, connectViewer
+        setIsRecording, setError, micLabel, setMicLabel, handleMessage, baseCleanup, resetState, connectViewer
     } = useBaseAudioStream(wsUrl);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -46,6 +46,11 @@ export const useAudioStreamDeepgram = (wsUrl: string): UseAudioStreamReturn => {
             });
             streamRef.current = stream;
 
+            const audioTrack = stream.getAudioTracks()[0];
+            if (audioTrack) {
+                setMicLabel(audioTrack.label);
+            }
+
             const socket = new WebSocket(wsUrl);
             socketRef.current = socket;
 
@@ -80,5 +85,5 @@ export const useAudioStreamDeepgram = (wsUrl: string): UseAudioStreamReturn => {
         }
     }, [wsUrl, stopRecording, handleMessage, setError, setIsRecording, isRecordingRef, socketRef, resetState]);
 
-    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, socketRef, error };
+    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, micLabel, socketRef, error };
 };

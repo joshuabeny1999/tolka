@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSession } from "./hooks/useSession";
 import { useTranscription } from "./hooks/useTranscription";
-import { useSpeakerRegistry } from "@/features/transcription/hooks/useSpeakerRegistry";
+import useSpeakerRegistry from "@/features/transcription/hooks/useSpeakerRegistry";
 import { LobbyView } from "./components/LobbyView";
 import { ActiveSessionView } from "./components/ActiveSessionView";
 import { ActiveSessionFullscreenView } from "./components/ActiveSessionFullscreenView.tsx";
@@ -24,6 +24,13 @@ export function TranscriptionLive() {
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const registryData = useSpeakerRegistry(socketRef, isRecording);
+
+    const handleLeave = () => {
+        if (registryData.clearRegistry) {
+            registryData.clearRegistry();
+        }
+        closeSession();
+    };
 
     if (sessionLoading) {
         return <div className="h-screen w-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
@@ -64,7 +71,7 @@ export function TranscriptionLive() {
             partialSpeaker={partialSpeaker}
             error={error}
             meta={meta}
-            onLeave={closeSession}
+            onLeave={handleLeave}
             toggleFullscreen={() => setIsFullscreen(true)}
             fontSize={fontSize}
             setFontSize={setFontSize}

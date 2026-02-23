@@ -6,7 +6,7 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
     const {
         isRecording, segments, partialText, partialSpeaker, error,
         socketRef, isRecordingRef,
-        setIsRecording, setError, handleMessage, baseCleanup, resetState, connectViewer
+        setIsRecording, setError, handleMessage, micLabel, setMicLabel, baseCleanup, resetState, connectViewer
     } = useBaseAudioStream(wsUrl);
 
     const simulationIntervalRef = useRef<number | null>(null);
@@ -22,6 +22,7 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
 
     const startRecording = useCallback(async () => {
         resetState();
+
         if (!wsUrl) { setError("No Session URL"); return; }
 
         stopRecording();
@@ -35,6 +36,7 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
                 console.log('WS: Connected (Mock Host)');
                 if (isRecordingRef.current) {
                     setIsRecording(true);
+                    setMicLabel('Mock');
                     // Simulation Loop
                     simulationIntervalRef.current = window.setInterval(() => {
                         if (socket.readyState === WebSocket.OPEN) {
@@ -59,7 +61,7 @@ export const useAudioStreamMock = (wsUrl: string): UseAudioStreamReturn => {
             isRecordingRef.current = false;
             stopRecording();
         }
-    }, [wsUrl, stopRecording, handleMessage, setError, setIsRecording, isRecordingRef, socketRef, resetState]);
+    }, [wsUrl, stopRecording, handleMessage, setError, setIsRecording, isRecordingRef, socketRef, setMicLabel, resetState]);
 
-    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, socketRef, error };
+    return { isRecording, segments, partialText, partialSpeaker, startRecording, stopRecording, connectViewer, micLabel, socketRef, error };
 };

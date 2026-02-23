@@ -60,6 +60,7 @@ export const useBaseAudioStream = (wsUrl: string) => {
     const baseCleanup = useCallback(() => {
         isRecordingRef.current = false;
         setIsRecording(false);
+        setMicLabel('');
         lastCommittedSegmentRef.current = null;
 
         if (socketRef.current) {
@@ -68,7 +69,6 @@ export const useBaseAudioStream = (wsUrl: string) => {
             }
             socketRef.current = null;
         }
-        setMicLabel('');
     }, []);
 
     const resetState = useCallback(() => {
