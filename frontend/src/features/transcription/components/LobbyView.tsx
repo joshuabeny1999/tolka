@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Captions as CaptionsIcon } from "lucide-react";
+import logo192 from "@/assets/icons/android-chrome-192x192.png";
+// Use a logo image placed in public/icons/
 import { QRScannerDialog } from "./QRScannerDialog";
 import type { ProviderType } from "../types";
 
@@ -12,8 +13,13 @@ export function LobbyView({ onCreateSession }: LobbyViewProps) {
         <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
             <div className="w-full max-w-md space-y-8">
                 <div className="text-center space-y-2">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mb-4">
-                        <CaptionsIcon className="w-6 h-6 text-primary" />
+                    {/* App logo (place your generated icons into public/icons/) */}
+                    <div className="inline-flex items-center justify-center">
+                        <img
+                            src={logo192}
+                            alt="Tolka Live"
+                            className="w-24 h-24 object-cover"
+                        />
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight">Tolka Live</h1>
                     <p className="text-muted-foreground">
@@ -42,10 +48,10 @@ export function LobbyView({ onCreateSession }: LobbyViewProps) {
                         <Button onClick={() => onCreateSession('azure')} className="w-full" variant="secondary">
                             Host mit Azure Speech
                         </Button>
-                        <Button onClick={() => onCreateSession('deepgram')} className="w-full" variant="outline">
+                        <Button onClick={() => onCreateSession('deepgram')} className="w-full" variant="outline" disabled={true}>
                             Host mit Deepgram
                         </Button>
-                        <Button onClick={() => onCreateSession('mock')} className="w-full" variant="ghost">
+                        <Button onClick={() => onCreateSession('mock')} className="w-full" variant="ghost" disabled={true}>
                             Simulation starten
                         </Button>
                     </div>

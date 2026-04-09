@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/frontend/index.html">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/frontend/index.html" />
+              <option name="originalContent" value="&lt;!doctype html&gt;&#10;&lt;html lang=&quot;en&quot; class=&quot;dark&quot;&gt;&#10;  &lt;head&gt;&#10;    &lt;meta charset=&quot;UTF-8&quot; /&gt;&#10;    &lt;!-- Use the app's high-resolution PNG favicon instead of the default vite.svg --&gt;&#10;    &lt;link rel=&quot;icon&quot; type=&quot;image/png&quot; sizes=&quot;512x512&quot; href=&quot;/icons/android-chrome-512x512.png&quot; /&gt;&#10;    &lt;!-- Favicons and PWA manifest --&gt;&#10;    &lt;link rel=&quot;apple-touch-icon&quot; sizes=&quot;180x180&quot; href=&quot;/icons/apple-touch-icon.png&quot;&gt;&#10;    &lt;link rel=&quot;icon&quot; type=&quot;image/png&quot; sizes=&quot;32x32&quot; href=&quot;/icons/favicon-32x32.png&quot;&gt;&#10;    &lt;link rel=&quot;icon&quot; type=&quot;image/png&quot; sizes=&quot;16x16&quot; href=&quot;/icons/favicon-16x16.png&quot;&gt;&#10;    &lt;link rel=&quot;manifest&quot; href=&quot;/manifest.json&quot;&gt;&#10;    &lt;meta name=&quot;theme-color&quot; content=&quot;#0ea5a4&quot;&gt;&#10;    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;&#10;    &lt;title&gt;frontend&lt;/title&gt;&#10;    &lt;script&gt;&#10;        window.TOLKA_CONFIG = {&#10;            WS_TOKEN: &quot;__WS_TOKEN_PLACEHOLDER__&quot;&#10;        };&#10;    &lt;/script&gt;&#10;  &lt;/head&gt;&#10;  &lt;body&gt;&#10;    &lt;div id=&quot;root&quot;&gt;&lt;/div&gt;&#10;    &lt;script type=&quot;module&quot; src=&quot;/src/main.tsx&quot;&gt;&lt;/script&gt;&#10;  &lt;/body&gt;&#10;&lt;/html&gt;&#10;" />
+              <option name="updatedContent" value="&lt;!doctype html&gt;&#10;&lt;html lang=&quot;en&quot; class=&quot;dark&quot;&gt;&#10;  &lt;head&gt;&#10;    &lt;meta charset=&quot;UTF-8&quot; /&gt;&#10;    &lt;!-- Use the app's high-resolution PNG favicon instead of the default vite.svg --&gt;&#10;    &lt;link rel=&quot;icon&quot; type=&quot;image/png&quot; sizes=&quot;512x512&quot; href=&quot;/icons/android-chrome-512x512.png&quot; /&gt;&#10;    &lt;!-- Favicons and PWA manifest --&gt;&#10;    &lt;link rel=&quot;apple-touch-icon&quot; sizes=&quot;180x180&quot; href=&quot;/icons/apple-touch-icon.png&quot;&gt;&#10;    &lt;link rel=&quot;icon&quot; type=&quot;image/png&quot; sizes=&quot;32x32&quot; href=&quot;/icons/favicon-32x32.png&quot;&gt;&#10;    &lt;link rel=&quot;icon&quot; type=&quot;image/png&quot; sizes=&quot;16x16&quot; href=&quot;/icons/favicon-16x16.png&quot;&gt;&#10;    &lt;link rel=&quot;manifest&quot; href=&quot;/manifest.json&quot;&gt;&#10;    &lt;meta name=&quot;theme-color&quot; content=&quot;#0ea5a4&quot;&gt;&#10;    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;&#10;    &lt;title&gt;frontend&lt;/title&gt;&#10;    &lt;script&gt;&#10;        window.TOLKA_CONFIG = {&#10;            WS_TOKEN: &quot;__WS_TOKEN_PLACEHOLDER__&quot;&#10;        };&#10;    &lt;/script&gt;&#10;  &lt;/head&gt;&#10;  &lt;body&gt;&#10;    &lt;div id=&quot;root&quot;&gt;&lt;/div&gt;&#10;    &lt;script type=&quot;module&quot; src=&quot;/src/main.tsx&quot;&gt;&lt;/script&gt;&#10;  &lt;/body&gt;&#10;&lt;/html&gt;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
