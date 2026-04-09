@@ -42,10 +42,10 @@ export function LobbyView({ onCreateSession }: LobbyViewProps) {
                         <Button onClick={() => onCreateSession('azure')} className="w-full" variant="secondary">
                             Host mit Azure Speech
                         </Button>
-                        <Button onClick={() => onCreateSession('deepgram')} className="w-full" variant="outline">
+                        <Button onClick={() => onCreateSession('deepgram')} className="w-full" variant="outline" disabled={true}>
                             Host mit Deepgram
                         </Button>
-                        <Button onClick={() => onCreateSession('mock')} className="w-full" variant="ghost">
+                        <Button onClick={() => onCreateSession('mock')} className="w-full" variant="ghost" disabled={true}>
                             Simulation starten
                         </Button>
                     </div>
